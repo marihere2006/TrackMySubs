@@ -43,15 +43,17 @@ pipeline {
         stage('Deploy Backend to AWS Elastic Beanstalk') {
             steps {
                 dir('backend') {
-                    echo 'Deploying to AWS Elastic Beanstalk...'
-                    // Upload the compiled JAR to an S3 bucket
-                    bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${EB_BUCKET}/app-v${BUILD_NUMBER}.jar"
-                    
-                    // Tell Elastic Beanstalk to create a new version from that JAR
-                    bat "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${EB_BUCKET}\",S3Key=\"app-v${BUILD_NUMBER}.jar\""
-                    
-                    // Update the running environment to use the new version
-                    bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"
+                    withCredentials([aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        echo 'Deploying to AWS Elastic Beanstalk...'
+                        // Upload the compiled JAR to an S3 bucket
+                        bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${EB_BUCKET}/app-v${BUILD_NUMBER}.jar"
+                        
+                        // Tell Elastic Beanstalk to create a new version from that JAR
+                        bat "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${EB_BUCKET}\",S3Key=\"app-v${BUILD_NUMBER}.jar\""
+                        
+                        // Update the running environment to use the new version
+                        bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"
+                    }
                 }
             }
         }
@@ -59,9 +61,11 @@ pipeline {
         stage('Deploy Frontend to AWS S3') {
             steps {
                 dir('frontend/dist') {
-                    echo 'Deploying to AWS S3...'
-                    // Sync the built 'dist' folder to the static hosting bucket
-                    bat "aws s3 sync . s3://${S3_FRONTEND_BUCKET} --delete"
+                    withCredentials([aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        echo 'Deploying to AWS S3...'
+                        // Sync the built 'dist' folder to the static hosting bucket
+                        bat "aws s3 sync . s3://${S3_FRONTEND_BUCKET} --delete"
+                    }
                 }
             }
         }

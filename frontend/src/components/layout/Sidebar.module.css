@@ -1,0 +1,290 @@
+/* Sidebar Component Styles */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-sidebar);
+  transition: width 300ms ease, transform 300ms ease;
+  overflow: visible;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Clip inner content but keep toggleBtn visible outside right edge */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+}
+
+/* ── Logo ─────────────────────────────────────────── */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 68px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.logoMain {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Toggle button ────────────────────────────────── */
+/* Sits half-outside the sidebar right edge — properly visible */
+.toggleBtn {
+  position: absolute;
+  top: 72px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary-600);
+  color: white;
+  border: 2.5px solid var(--sidebar-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: calc(var(--z-sidebar) + 1);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
+}
+.toggleBtn:hover {
+  background: var(--primary-500);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+/* ── Nav ──────────────────────────────────────────── */
+.nav {
+  flex: 1;
+  padding: 16px 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Clip horizontal content while keeping toggle outside */
+}
+
+.navLabel {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: rgba(148, 163, 184, 0.5);
+  letter-spacing: 0.1em;
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
+
+.navList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+  position: relative;
+}
+
+.navItem:hover {
+  background: var(--sidebar-hover);
+  color: #e2e8f0;
+}
+
+.navItem.active {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--primary-400);
+}
+
+.navItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--primary-500);
+  border-radius: 0 2px 2px 0;
+}
+
+.navIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.notifDot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger-500);
+  border: 1.5px solid var(--sidebar-bg);
+  animation: pulse 2s infinite;
+}
+
+.navLabel2 {
+  flex: 1;
+}
+
+.badge {
+  background: var(--danger-500);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ── User Section ─────────────────────────────────── */
+.userSection {
+  padding: 12px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.userMeta {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.userName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userEmail {
+  font-size: 0.6875rem;
+  color: var(--sidebar-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger-500);
+}
+
+/* ── Mobile ───────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: calc(var(--z-sidebar) - 1);
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: var(--sidebar-width) !important;
+  }
+  .sidebar.mobileOpen {
+    transform: translateX(0);
+  }
+  .toggleBtn {
+    display: none;
+  }
+}

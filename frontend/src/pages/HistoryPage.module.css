@@ -1,0 +1,280 @@
+/* ============================================================
+   History Page Styles — TrackMySubs
+   ============================================================ */
+
+.page {
+  animation: fadeIn 300ms ease both;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Group card ──────────────────────────────────────────── */
+.group {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: all 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.group:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-surface-alt);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+}
+
+.groupEmoji {
+  font-size: 1.625rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.groupInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupName {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupCat {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── Service-level status badge ──────────────────────────── */
+.serviceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusActive {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success-600, #16a34a);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.statusActive .statusDot {
+  background: var(--success-500, #22c55e);
+  animation: pulseDot 2s infinite;
+}
+
+.statusExpired {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger-600, #dc2626);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.statusExpired .statusDot {
+  background: var(--danger-500, #ef4444);
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+
+.periodCount {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Timeline rail ───────────────────────────────────────── */
+.timeline {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 16px;
+}
+
+.timelineLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 18px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid;
+  margin-top: 16px;
+  z-index: 1;
+  position: relative;
+}
+
+.dotActive {
+  background: var(--success-500, #22c55e);
+  border-color: var(--success-500, #22c55e);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  animation: glowDot 2.5s infinite;
+}
+
+@keyframes glowDot {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.1); }
+}
+
+.dotPast {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+}
+
+.line {
+  flex: 1;
+  width: 2px;
+  background: var(--border-color);
+  margin: 4px 0;
+  min-height: 16px;
+}
+
+/* ── Timeline cards ──────────────────────────────────────── */
+.timelineCard {
+  flex: 1;
+  padding: 12px 15px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  transition: all 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.timelineCard:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+  border-color: var(--border-hover);
+}
+
+.cardCurrent {
+  background: rgba(34, 197, 94, 0.04);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.cardPast {
+  background: var(--bg-surface-alt);
+}
+
+/* ── Period label (Current / Previous Period) ────────────── */
+.periodLabel {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  margin-bottom: 6px;
+}
+
+.periodLabelCurrent {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success-600, #16a34a);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.periodLabelPast {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+/* ── Date range row ──────────────────────────────────────── */
+.periodRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.periodDate {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.periodArrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Cost meta row ───────────────────────────────────────── */
+.periodMeta {
+  margin-top: 5px;
+}
+
+.periodCost {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 540px) {
+  .groupHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .periodCount {
+    margin-left: 0;
+  }
+
+  .periodDate {
+    font-size: 0.8125rem;
+  }
+}

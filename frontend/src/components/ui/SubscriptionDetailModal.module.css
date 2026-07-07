@@ -1,0 +1,26 @@
+.detailGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-body);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.detailKey {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.detailVal {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}

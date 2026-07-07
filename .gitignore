@@ -1,0 +1,17 @@
+# Frontend ignores
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+frontend/.eslintcache
+
+# Backend ignores
+backend/target/
+backend/.classpath
+backend/.project
+backend/.settings/
+
+# General ignores
+.DS_Store
+*.log
+.gemini/

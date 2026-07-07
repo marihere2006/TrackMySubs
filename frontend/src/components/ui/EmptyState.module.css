@@ -1,0 +1,62 @@
+/* EmptyState Styles */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  gap: 12px;
+}
+
+.iconWrap {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface-alt);
+  border: 1.5px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 20px;
+  margin-top: 8px;
+  background: var(--primary-600);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.actionBtn:hover {
+  background: var(--primary-700);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}

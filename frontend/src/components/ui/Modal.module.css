@@ -1,0 +1,86 @@
+/* Modal Component Styles */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 200ms ease both;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 200ms ease both;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+
+.modal-sm { max-width: 400px; }
+.modal-md { max-width: 520px; }
+.modal-lg { max-width: 720px; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.closeBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

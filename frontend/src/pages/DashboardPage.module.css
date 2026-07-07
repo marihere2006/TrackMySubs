@@ -1,0 +1,312 @@
+/* ============================================================
+   Dashboard Page Styles
+   ============================================================ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.addBtn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+/* Base card wrapper for the sections */
+.sectionCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.viewAllLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.viewAllLink:hover {
+  color: var(--primary-hover);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.emptyStateIcon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+.emptyStateText {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+/* Grids */
+.rowGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .rowGrid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rowGrid3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (max-width: 1000px) {
+  .rowGrid3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .rowGrid3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.secondaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 1000px) {
+  .secondaryGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .secondaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Priority Renewals & Upcoming Payments lists */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-body);
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.listItem:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.itemLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.itemName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.itemMeta {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.itemRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.itemCost {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.renewBtn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--primary-50);
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+
+/* Categories Grid */
+.categoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Recent Activity Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-left: 20px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--border-light);
+}
+
+.timelineItem {
+  position: relative;
+  padding-bottom: 20px;
+}
+.timelineItem:last-child {
+  padding-bottom: 0;
+}
+.timelineDot {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  border: 2px solid var(--bg-surface);
+}
+
+.activityText {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+.activityTime {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Auto Renewal Card */
+.autoRenewFlex {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.autoRenewRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-body);
+  border: 1px solid var(--border-light);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.autoRenewRow:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.autoRenewRow.enabled {
+  border-left: 4px solid var(--success-500);
+}
+.autoRenewRow.disabled {
+  border-left: 4px solid var(--text-muted);
+}
+
+.autoRenewLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.autoRenewCount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}

@@ -1,0 +1,307 @@
+/* HeroHeader.module.css */
+
+.heroHeader {
+  margin: -28px -28px 28px -28px;
+  position: relative;
+  z-index: var(--z-topbar);
+  background: var(--sidebar-bg);
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* We don't use overflow: hidden; so the notifPanel can pop out */
+}
+
+/* Subtle gradient overlay */
+.bgOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 0 0 24px 24px;
+}
+
+.container {
+  position: relative;
+  z-index: 2;
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  width: 100%;
+}
+
+.leftSide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.topLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menuBtn {
+  display: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  color: #fff;
+  cursor: pointer;
+  padding: 6px;
+  transition: background var(--transition-fast);
+}
+.menuBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.breadcrumbWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.brand {
+  color: var(--primary-400);
+  font-weight: 700;
+}
+
+.separator {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.breadcrumb {
+  color: #cbd5e1; /* slate-300 */
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  color: #cbd5e1;
+  max-width: 600px;
+}
+
+.rightSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.globalActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pageAction {
+  display: flex;
+  align-items: center;
+}
+
+/* Icon Buttons in dark header */
+.iconBtn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.hasNotif {
+  color: #ffffff;
+}
+.hasNotif::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  background: var(--danger-500);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--sidebar-bg);
+}
+
+.notifCount {
+  display: none;
+}
+
+/* Notifications Panel - Keeps its standard surface styling */
+.notifWrapper {
+  position: relative;
+}
+
+.notifPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 50;
+  overflow: hidden;
+  animation: slideDown 200ms ease-out forwards;
+  transform-origin: top right;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.notifHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.closeNotif {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.closeNotif:hover {
+  color: var(--text-primary);
+}
+
+.noNotif {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.notifList {
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notifSection {
+  padding: 8px 16px;
+  background: var(--bg-surface-alt);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.notifItem {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.notifItem:last-child {
+  border-bottom: none;
+}
+
+.notifContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notifTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notifSub {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.notifFooter {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+}
+
+.viewAll {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary-600);
+  text-decoration: none;
+}
+.viewAll:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .menuBtn {
+    display: block;
+  }
+}
+
+@media (max-width: 768px) {
+  .heroHeader {
+    margin: -20px -16px 20px -16px;
+    border-radius: 0 0 16px 16px;
+  }
+  .bgOverlay {
+    border-radius: 0 0 16px 16px;
+  }
+  .container {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .rightSide {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pageAction {
+    order: -1; /* Push action button to left side on mobile, global icons to right */
+  }
+}

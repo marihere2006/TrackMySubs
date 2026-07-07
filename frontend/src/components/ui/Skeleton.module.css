@@ -1,0 +1,59 @@
+/* Skeleton Component Styles */
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-alt) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-surface-alt) 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Variants */
+.text {
+  height: 14px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.rect {
+  border-radius: var(--radius-md);
+  display: block;
+}
+
+.circle {
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Stat card skeleton */
+.statCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.statCardTop {
+  margin-bottom: 16px;
+}
+
+/* Table row skeleton */
+.tableRow {
+  animation: none;
+}
+
+.tableRow td {
+  vertical-align: middle;
+}

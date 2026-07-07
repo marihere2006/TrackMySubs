@@ -1,0 +1,35 @@
+/* DashboardLayout Styles */
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  --current-sidebar-width: var(--sidebar-width);
+}
+
+.layout.sidebarCollapsed {
+  --current-sidebar-width: var(--sidebar-collapsed);
+}
+
+.main {
+  flex: 1;
+  margin-left: var(--current-sidebar-width);
+  transition: margin-left 300ms ease;
+  min-width: 0;
+}
+
+.content {
+  padding: 28px 28px 40px;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .layout {
+    --current-sidebar-width: 0px;
+  }
+  .main {
+    margin-left: 0 !important;
+  }
+  .content {
+    padding: 20px 16px 32px;
+  }
+}

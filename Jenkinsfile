@@ -32,10 +32,9 @@ pipeline {
             steps {
                 dir('frontend') {
                     echo 'Building the frontend...'
-                    // Use clean install (ci) which is more reliable in CI environments.
-                    // Prefixing with 'call' and using a local cache helps prevent the "Exit handler never called" error on Windows.
-                    bat 'call npm cache clean --force --cache .npm-cache'
-                    bat 'call npm ci --cache .npm-cache'
+                    // The "Exit handler never called" error in Node 22+ on Windows Jenkins is often caused by console UI updates.
+                    // Disabling progress bars and other extra output usually bypasses this crash.
+                    bat 'call npm ci --no-progress --no-audit --no-fund'
                     bat 'call npm run build'
                 }
             }

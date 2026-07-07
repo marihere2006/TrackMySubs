@@ -4,8 +4,8 @@ pipeline {
     environment {
         // AWS Variables - These will need to be configured based on your actual AWS setup
         AWS_DEFAULT_REGION = 'us-east-1'
-        EB_APP_NAME = 'trackmysubs-backend'
-        EB_ENV_NAME = 'TrackmysubsBackend-env'
+        EB_APP_NAME = 'TrackMySubs'
+        EB_ENV_NAME = 'TrackMySubs-env'
         EB_BUCKET = 'trackmysubs-eb-deployments' // An S3 bucket to hold your backend .jar files
         S3_FRONTEND_BUCKET = 'trackmysubs-frontend-hosting'
     }

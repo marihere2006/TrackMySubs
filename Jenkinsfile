@@ -32,10 +32,11 @@ pipeline {
             steps {
                 dir('frontend') {
                     echo 'Building the frontend...'
-                    // Jenkins on Windows System Account often crashes NPM when using the default system cache.
-                    // Using a local workspace cache folder prevents the "Exit handler never called" error.
-                    bat 'npm install --cache .npm-cache'
-                    bat 'npm run build'
+                    // Use clean install (ci) which is more reliable in CI environments.
+                    // Prefixing with 'call' and using a local cache helps prevent the "Exit handler never called" error on Windows.
+                    bat 'call npm cache clean --force --cache .npm-cache'
+                    bat 'call npm ci --cache .npm-cache'
+                    bat 'call npm run build'
                 }
             }
         }

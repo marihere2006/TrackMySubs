@@ -24,8 +24,8 @@ public class SubscriptionScheduler {
     @Autowired
     private EmailService emailService;
 
-    // Runs every day at 8:00 AM
-    @Scheduled(cron = "0 0 8 * * ?")
+    // Runs every day at 10:00 AM
+    @Scheduled(cron = "0 0 10 * * ?")
     public void sendDailyExpiryReminders() {
         logger.info("Starting daily expiry reminder job...");
         
@@ -46,8 +46,25 @@ public class SubscriptionScheduler {
             // Calculate days until expiry
             long daysUntilExpiry = ChronoUnit.DAYS.between(today, expiryDate);
 
+            // If the subscription has expired
+            if (daysUntilExpiry < 0) {
+                // Change status to EXPIRED
+                sub.setStatus("EXPIRED");
+                subscriptionRepository.save(sub);
+                
+                String userEmail = sub.getUser().getEmail();
+                if (userEmail != null && !userEmail.isEmpty()) {
+                    emailService.sendSubscriptionExpiredEmail(
+                        userEmail, 
+                        sub.getServiceName(), 
+                        expiryDate, 
+                        sub.getCost()
+                    );
+                    emailsSent++;
+                }
+            }
             // If the subscription is expiring within the reminder window (and hasn't already expired)
-            if (daysUntilExpiry >= 0 && daysUntilExpiry <= sub.getReminderDays()) {
+            else if (daysUntilExpiry >= 0 && daysUntilExpiry <= sub.getReminderDays()) {
                 String userEmail = sub.getUser().getEmail();
                 if (userEmail != null && !userEmail.isEmpty()) {
                     emailService.sendExpiryReminderEmail(

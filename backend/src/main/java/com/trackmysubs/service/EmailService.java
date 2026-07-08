@@ -72,4 +72,33 @@ public class EmailService {
             logger.error("Failed to send expiry email to {}: {}", toEmail, ex.getMessage(), ex);
         }
     }
+
+    public void sendSubscriptionExpiredEmail(String toEmail, String serviceName, java.time.LocalDate expiryDate, java.math.BigDecimal cost) {
+        logger.info("sendSubscriptionExpiredEmail requested for: {} regarding {}", toEmail, serviceName);
+
+        if (mailSender == null) {
+            logger.error("JavaMailSender is not initialized. Cannot send real email.");
+            return;
+        }
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject("TrackMySubs - Notice: " + serviceName + " has Expired");
+            message.setText("Hello,\n\n" +
+                    "This is an automated notice that your subscription for " + serviceName + " has expired.\n\n" +
+                    "Details:\n" +
+                    "- Service: " + serviceName + "\n" +
+                    "- Expiry Date: " + expiryDate + "\n" +
+                    "- Cost: " + cost + "\n\n" +
+                    "We have automatically updated your subscription status to EXPIRED in your dashboard.\n\n" +
+                    "Best regards,\n" +
+                    "TrackMySubs Team");
+            
+            mailSender.send(message);
+            logger.info("Expired notice email successfully sent to {}", toEmail);
+        } catch (MailException ex) {
+            logger.error("Failed to send expired email to {}: {}", toEmail, ex.getMessage(), ex);
+        }
+    }
 }

@@ -36,8 +36,9 @@ public class SubscriptionScheduler {
         int emailsSent = 0;
 
         for (Subscription sub : allSubscriptions) {
-            // Only process active subscriptions
-            if (!"ACTIVE".equalsIgnoreCase(sub.getStatus())) {
+            // Only process active or expiring soon subscriptions
+            String currentStatus = sub.getStatus();
+            if (!"ACTIVE".equalsIgnoreCase(currentStatus) && !"Expiring Soon".equalsIgnoreCase(currentStatus) && !"Active ".equalsIgnoreCase(currentStatus)) {
                 continue;
             }
 
@@ -65,7 +66,7 @@ public class SubscriptionScheduler {
                 }
             }
             // If the subscription is expiring within the reminder window (and hasn't already expired)
-            else if (daysUntilExpiry >= 0 && daysUntilExpiry <= sub.getReminderDays()) {
+            else if (daysUntilExpiry >= 0 && daysUntilExpiry < sub.getReminderDays()) {
                 String userEmail = sub.getUser().getEmail();
                 if (userEmail != null && !userEmail.isEmpty()) {
                     emailService.sendExpiryReminderEmail(

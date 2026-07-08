@@ -24,8 +24,8 @@ public class SubscriptionScheduler {
     @Autowired
     private EmailService emailService;
 
-    // Runs every day at 10:00 AM
-    @Scheduled(cron = "0 0 10 * * ?")
+    // Runs every minute for testing purposes
+    @Scheduled(cron = "0 * * * * ?")
     public void sendDailyExpiryReminders() {
         logger.info("Starting daily expiry reminder job...");
         

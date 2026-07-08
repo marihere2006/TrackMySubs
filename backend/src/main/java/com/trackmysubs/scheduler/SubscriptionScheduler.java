@@ -26,6 +26,7 @@ public class SubscriptionScheduler {
 
     // Runs every minute for testing purposes
     @Scheduled(cron = "0 * * * * ?")
+    @org.springframework.transaction.annotation.Transactional
     public void sendDailyExpiryReminders() {
         logger.info("Starting daily expiry reminder job...");
         

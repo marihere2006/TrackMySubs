@@ -24,8 +24,8 @@ public class SubscriptionScheduler {
     @Autowired
     private EmailService emailService;
 
-    // Runs every minute for testing purposes
-    @Scheduled(cron = "0 * * * * ?")
+    // Runs every day at 8:00 AM Indian Standard Time (IST)
+    @Scheduled(cron = "0 0 8 * * ?", zone = "Asia/Kolkata")
     @org.springframework.transaction.annotation.Transactional
     public void sendDailyExpiryReminders() {
         logger.info("Starting daily expiry reminder job...");

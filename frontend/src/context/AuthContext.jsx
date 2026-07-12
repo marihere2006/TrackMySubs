@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
     return result;
   };
 
+
   const register = async (data) => {
     const result = await registerService(data);
     setUser(result.user);

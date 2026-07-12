@@ -41,6 +41,7 @@ export const login = async (email, password) => {
   return { user, token };
 };
 
+
 /**
  * Register — creates a new user via Spring Boot.
  */
@@ -162,3 +163,38 @@ export const verifyOtp = async (email, otp) => {
   return res.json();
 };
 
+/**
+ * Send OTP for forgot password
+ */
+export const sendForgotPasswordOtp = async (email) => {
+  const res = await fetch(`${BASE_URL}/auth/forgot-password-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || 'Failed to send reset code.');
+  }
+
+  return res.json();
+};
+
+/**
+ * Reset password
+ */
+export const resetPassword = async (email, otp, newPassword) => {
+  const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || 'Password reset failed.');
+  }
+
+  return res.json();
+};

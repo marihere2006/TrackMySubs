@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  BarChart2,
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { to: '/add-subscription', label: 'Add Subscription', icon: PlusCircle },
   { to: '/expired', label: 'Expired Plans', icon: Clock },
   { to: '/history', label: 'History', icon: History },
+  { to: '/analytics', label: 'Analytics', icon: BarChart2 },
   { to: '/profile', label: 'Profile', icon: User },
 ];
 

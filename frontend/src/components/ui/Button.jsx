@@ -1,5 +1,5 @@
 // ============================================================
-// Button — Reusable UI Component
+// Button — Premium Reusable UI Component
 // ============================================================
 
 import styles from './Button.module.css';
@@ -23,6 +23,7 @@ const Button = ({
     styles[`btn-${variant}`],
     size !== 'md' && styles[`btn-${size}`],
     fullWidth && styles['btn-full'],
+    loading && styles['btn-loading'],
     className,
   ]
     .filter(Boolean)
@@ -34,17 +35,13 @@ const Button = ({
       className={classes}
       disabled={disabled || loading}
       onClick={onClick}
+      aria-busy={loading}
       {...rest}
     >
-      {loading ? (
-        <span className={styles.spinner} aria-label="Loading" />
-      ) : (
-        <>
-          {Icon && iconPosition === 'left' && <Icon size={16} />}
-          {children}
-          {Icon && iconPosition === 'right' && <Icon size={16} />}
-        </>
-      )}
+      {loading && <span className={styles.spinner} aria-hidden="true" />}
+      {Icon && iconPosition === 'left' && !loading && <Icon size={15} />}
+      <span className={loading ? styles.loadingText : undefined}>{children}</span>
+      {Icon && iconPosition === 'right' && !loading && <Icon size={15} />}
     </button>
   );
 };

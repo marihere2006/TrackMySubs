@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import {
   getSubscriptions,
   addSubscription,
@@ -19,6 +20,7 @@ const SubscriptionContext = createContext(null);
 
 export const SubscriptionProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [subscriptions, setSubscriptions] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,6 @@ export const SubscriptionProvider = ({ children }) => {
     setError(null);
     try {
       const [subs, hist] = await Promise.all([getSubscriptions(), getHistory()]);
-      // Derive live status from current date — never trust stored status alone
       const withLiveStatus = subs.map((s) => ({
         ...s,
         computedStatus: getStatus(s.expiryDate, s.reminderDays),
@@ -47,9 +48,7 @@ export const SubscriptionProvider = ({ children }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      Promise.resolve().then(() => {
-        loadData();
-      });
+      Promise.resolve().then(() => { loadData(); });
     } else {
       Promise.resolve().then(() => {
         setSubscriptions([]);
@@ -61,35 +60,54 @@ export const SubscriptionProvider = ({ children }) => {
 
   // ── CRUD Operations ───────────────────────────────────
   const addSub = async (data) => {
-    const newSub = await addSubscription(data);
-    const withStatus = { ...newSub, computedStatus: getStatus(newSub.expiryDate, newSub.reminderDays) };
-    setSubscriptions((prev) => [...prev, withStatus]);
-    return withStatus;
+    try {
+      const newSub = await addSubscription(data);
+      const withStatus = { ...newSub, computedStatus: getStatus(newSub.expiryDate, newSub.reminderDays) };
+      setSubscriptions((prev) => [...prev, withStatus]);
+      showSuccess(`${newSub.serviceName} added successfully!`, 'Subscription Added');
+      return withStatus;
+    } catch (err) {
+      showError(err.message || 'Failed to add subscription.', 'Add Failed');
+      throw err;
+    }
   };
 
   const updateSub = async (id, data) => {
-    const updated = await updateSubscription(id, data);
-    const withStatus = { ...updated, computedStatus: getStatus(updated.expiryDate, updated.reminderDays) };
-    setSubscriptions((prev) => prev.map((s) => (s.id === id ? withStatus : s)));
-    return withStatus;
+    try {
+      const updated = await updateSubscription(id, data);
+      const withStatus = { ...updated, computedStatus: getStatus(updated.expiryDate, updated.reminderDays) };
+      setSubscriptions((prev) => prev.map((s) => (s.id === id ? withStatus : s)));
+      showSuccess(`${updated.serviceName} updated successfully!`, 'Subscription Updated');
+      return withStatus;
+    } catch (err) {
+      showError(err.message || 'Failed to update subscription.', 'Update Failed');
+      throw err;
+    }
   };
 
   const deleteSub = async (id) => {
-    await deleteSubscription(id);
-    setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+    const sub = subscriptions.find(s => s.id === id);
+    try {
+      await deleteSubscription(id);
+      setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+      showSuccess(`${sub?.serviceName || 'Subscription'} deleted.`, 'Deleted');
+    } catch (err) {
+      showError(err.message || 'Failed to delete subscription.', 'Delete Failed');
+      throw err;
+    }
   };
 
-  /**
-   * Renew a subscription with a user-provided new expiry date and cost.
-   * @param {string} id - Subscription ID
-   * @param {string} newExpiryDate - User-entered date "YYYY-MM-DD"
-   * @param {number} newCost - User-entered cost
-   */
   const renewSub = async (id, newExpiryDate, newCost) => {
-    const updated = await renewSubscription(id, newExpiryDate, newCost);
-    await loadData();
-    const withStatus = { ...updated, computedStatus: getStatus(updated.expiryDate, updated.reminderDays) };
-    return withStatus;
+    try {
+      const updated = await renewSubscription(id, newExpiryDate, newCost);
+      await loadData();
+      const withStatus = { ...updated, computedStatus: getStatus(updated.expiryDate, updated.reminderDays) };
+      showSuccess(`${updated.serviceName} renewed successfully!`, 'Renewed');
+      return withStatus;
+    } catch (err) {
+      showError(err.message || 'Failed to renew subscription.', 'Renewal Failed');
+      throw err;
+    }
   };
 
   // ── Derived Data ──────────────────────────────────────
@@ -103,7 +121,7 @@ export const SubscriptionProvider = ({ children }) => {
     (s) => s.computedStatus === 'Expiring Soon'
   );
 
-  // Notifications: expiring within custom reminderDays (future) + expired within 7 days (past)
+  // Notifications: expiring within custom reminderDays + expired within 7 days
   const notifications = subscriptions
     .filter((s) => {
       const days = daysUntilExpiry(s.expiryDate);
@@ -113,18 +131,8 @@ export const SubscriptionProvider = ({ children }) => {
     .sort((a, b) => Math.abs(daysUntilExpiry(a.expiryDate)) - Math.abs(daysUntilExpiry(b.expiryDate)));
 
   const [notificationsDismissed, setNotificationsDismissed] = useState(false);
-
-  // Total cost of active subscriptions (raw sum — no billing cycle normalization)
   const totalActiveCost = calcTotalCost(activeSubscriptions);
-
   const dismissNotifications = () => setNotificationsDismissed(true);
-
-  // If notifications are dismissed, we return an empty array for UI purposes.
-  // Wait, if we return an empty array, it might clear the list in the notification panel too.
-  // The user asked for "the noti indicator should off". So the count/badge should go away.
-  // It's better to pass notificationsDismissed down and let components handle hiding the badge,
-  // or we can return empty notifications but we probably want to see them in the panel.
-  // Actually, let's just pass dismissNotifications and notificationsDismissed to the context.
 
   return (
     <SubscriptionContext.Provider
@@ -139,7 +147,6 @@ export const SubscriptionProvider = ({ children }) => {
         notifications,
         notificationsDismissed,
         totalActiveCost,
-        // Keep monthlyTotal as alias for backward compat with Dashboard
         monthlyTotal: totalActiveCost,
         addSub,
         updateSub,

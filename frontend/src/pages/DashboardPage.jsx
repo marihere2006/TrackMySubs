@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CreditCard, CheckCircle, AlertTriangle, TrendingUp,
-  ArrowRight, Calendar, AlertCircle, RefreshCw, PlusCircle
+  ArrowRight, AlertCircle, RefreshCw, PlusCircle, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSubscriptions } from '../context/SubscriptionContext';
@@ -70,7 +70,7 @@ const DashboardPage = () => {
           text: `Added ${sub.serviceName}`,
           date: date,
           icon: PlusCircle,
-          color: '#10b981'
+          color: '#22c55e'
         });
       }
     });
@@ -84,22 +84,32 @@ const DashboardPage = () => {
           text: `Renewed ${h.serviceName}`,
           date: date,
           icon: RefreshCw,
-          color: '#3b82f6'
+          color: '#6366f1'
         });
       }
     });
-    return acts.sort((a, b) => b.date - a.date).slice(0, 5);
+    return acts.sort((a, b) => b.date - a.date).slice(0, 6);
   }, [subscriptions, history]);
 
   // Auto Renewal counts
-  const autoRenewEnabled = subscriptions.filter(s => s.autoRenewal).length;
+  const autoRenewEnabled  = subscriptions.filter(s => s.autoRenewal).length;
   const autoRenewDisabled = subscriptions.length - autoRenewEnabled;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   if (loading) {
-    return <div className={styles.page} style={{ padding: 40 }}><Skeleton width="100%" height={200} /><Skeleton width="100%" height={400} /></div>;
+    return (
+      <div className={styles.page}>
+        <div className="stats-grid">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="stat-card" />)}
+        </div>
+        <div className={styles.rowGrid2}>
+          <Skeleton variant="card" height={320} />
+          <Skeleton variant="card" height={320} />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -108,15 +118,16 @@ const DashboardPage = () => {
       <HeroHeader
         breadcrumb="Dashboard"
         title={`${greeting}, ${user?.name?.split(' ')[0] || 'there'} 👋`}
-        subtitle="Here's what you need to do today."
+        subtitle="Here's your subscription overview for today."
         action={
           <Link to="/add-subscription" className={styles.addBtn}>
-            + Add Subscription
+            <Sparkles size={15} />
+            Add Subscription
           </Link>
         }
       />
 
-      {/* Section 2: Summary Cards (Exactly 4) */}
+      {/* Section 2: Summary Cards */}
       <div className="stats-grid">
         <StatCard
           title="Total Subscriptions"
@@ -127,11 +138,11 @@ const DashboardPage = () => {
           className="delay-1"
         />
         <StatCard
-          title="Active Subscriptions"
+          title="Active"
           value={activeSubscriptions.length}
           icon={CheckCircle}
           color="green"
-          to="/subscriptions?status=Active"
+          to="/subscriptions?status=Active_All"
           className="delay-2"
         />
         <StatCard
@@ -153,25 +164,25 @@ const DashboardPage = () => {
       </div>
 
       {/* Row 2: Priority Renewals & Upcoming Payments */}
-      <div className={styles.rowGrid2}>
-        {/* Section 3: Priority Renewals */}
-        <div className={`${styles.sectionCard} animate-fade-in delay-5`}>
+      <div className={`${styles.rowGrid2} animate-fade-in delay-5`}>
+        {/* Priority Renewals */}
+        <div className={styles.sectionCard}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Priority Renewals</h2>
+            <h2 className={styles.sectionTitle}>🔔 Priority Renewals</h2>
             <Link to="/subscriptions?priority=true" className={styles.viewAllLink}>
-              View All <ArrowRight size={14} />
+              View All <ArrowRight size={13} />
             </Link>
           </div>
-          
+
           {priorityRenewals.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyStateIcon}>🎉</div>
-              <p className={styles.emptyStateText}>No subscriptions require attention today.</p>
+              <p className={styles.emptyStateText}>No renewals require attention today.</p>
             </div>
           ) : (
             <ul className={styles.list}>
               {priorityRenewals.map(sub => (
-                <div key={sub.id} onClick={() => setSelectedSubscription(sub)} className={styles.listItem} style={{ cursor: 'pointer' }}>
+                <div key={sub.id} onClick={() => setSelectedSubscription(sub)} className={styles.listItem}>
                   <div className={styles.itemLeft}>
                     <ServiceLogo serviceName={sub.serviceName} size={36} />
                     <div className={styles.itemInfo}>
@@ -184,7 +195,7 @@ const DashboardPage = () => {
                   <div className={styles.itemRight}>
                     <p className={styles.itemCost}>{formatCurrency(sub.cost)}</p>
                     <span className={styles.renewBtn}>
-                      Renew <ArrowRight size={12} />
+                      Renew <ArrowRight size={11} />
                     </span>
                   </div>
                 </div>
@@ -193,15 +204,15 @@ const DashboardPage = () => {
           )}
         </div>
 
-        {/* Section 4: Upcoming Payments */}
-        <div className={`${styles.sectionCard} animate-fade-in delay-6`}>
+        {/* Upcoming Payments */}
+        <div className={styles.sectionCard}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Upcoming Payments</h2>
+            <h2 className={styles.sectionTitle}>📅 Upcoming Payments</h2>
             <Link to="/subscriptions?sort=expiryDate-asc" className={styles.viewAllLink}>
-              View All <ArrowRight size={14} />
+              View All <ArrowRight size={13} />
             </Link>
           </div>
-          
+
           {upcomingPayments.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyStateIcon}>📅</div>
@@ -210,9 +221,9 @@ const DashboardPage = () => {
           ) : (
             <ul className={styles.list}>
               {upcomingPayments.map(sub => (
-                <div key={sub.id} onClick={() => setSelectedSubscription(sub)} className={styles.listItem} style={{ cursor: 'pointer' }}>
+                <div key={sub.id} onClick={() => setSelectedSubscription(sub)} className={styles.listItem}>
                   <div className={styles.itemLeft}>
-                    <ServiceLogo serviceName={sub.serviceName} size={32} />
+                    <ServiceLogo serviceName={sub.serviceName} website={sub.website} size={32} />
                     <div className={styles.itemInfo}>
                       <h4 className={styles.itemName}>{sub.serviceName}</h4>
                       <p className={styles.itemMeta}>{formatDate(sub.expiryDate)}</p>
@@ -228,14 +239,13 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Row 3: Insights & Activity */}
-      <div className={styles.rowGrid3}>
-        {/* Section 5: Subscription Categories */}
-        <div className={`${styles.sectionCard} animate-fade-in delay-7`}>
+      {/* Row 3: Categories, Auto Renewal, Recent Activity */}
+      <div className={`${styles.rowGrid3} animate-fade-in delay-7`}>
+        {/* Subscription Categories */}
+        <div className={styles.sectionCard}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Subscription Categories</h2>
+            <h2 className={styles.sectionTitle}>📁 Categories</h2>
           </div>
-          
           {categoriesList.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyStateIcon}>📁</div>
@@ -250,12 +260,11 @@ const DashboardPage = () => {
           )}
         </div>
 
-        {/* Section 7: Auto Renewal */}
-        <div className={`${styles.sectionCard} animate-fade-in delay-8`} style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Auto Renewal */}
+        <div className={styles.sectionCard}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Auto Renewal</h2>
+            <h2 className={styles.sectionTitle}>🔄 Auto Renewal</h2>
           </div>
-          
           <div className={styles.autoRenewFlex}>
             <Link to="/subscriptions?autoRenew=true" className={`${styles.autoRenewRow} ${styles.enabled}`}>
               <span className={styles.autoRenewLabel}>
@@ -272,28 +281,26 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Section 6: Recent Activity */}
-        <div className={`${styles.sectionCard} animate-fade-in delay-9`} style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Recent Activity */}
+        <div className={styles.sectionCard}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Recent Activity</h2>
+            <h2 className={styles.sectionTitle}>🕒 Recent Activity</h2>
             <Link to="/history" className={styles.viewAllLink}>
-              View History <ArrowRight size={14} />
+              History <ArrowRight size={13} />
             </Link>
           </div>
-          
           {recentActivities.length === 0 ? (
-            <div className={styles.emptyState} style={{ padding: '20px 0' }}>
-              <div className={styles.emptyStateIcon} style={{ fontSize: '2rem' }}>🕒</div>
+            <div className={styles.emptyState}>
+              <div className={styles.emptyStateIcon}>🕒</div>
               <p className={styles.emptyStateText}>No activity in the last 30 days.</p>
             </div>
           ) : (
             <div className={styles.timeline}>
               {recentActivities.map(act => (
-                <div 
-                  key={act.id} 
-                  onClick={() => setSelectedSubscription(subscriptions.find(s => s.id === act.subId))} 
-                  className={styles.timelineItem} 
-                  style={{ cursor: 'pointer', display: 'block' }}
+                <div
+                  key={act.id}
+                  onClick={() => setSelectedSubscription(subscriptions.find(s => s.id === act.subId))}
+                  className={styles.timelineItem}
                 >
                   <div className={styles.timelineDot} style={{ borderColor: act.color }} />
                   <p className={styles.activityText}>{act.text}</p>

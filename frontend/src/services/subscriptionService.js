@@ -5,6 +5,15 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 const TOKEN_KEY = 'sms_token';
 
+const checkAuthError = (res) => {
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('sms_user');
+    window.location.href = '/login';
+    throw new Error('Session expired. Please login again.');
+  }
+};
+
 const getHeaders = () => {
   const token = localStorage.getItem(TOKEN_KEY);
   return {
@@ -21,6 +30,7 @@ export const getSubscriptions = async () => {
     headers: getHeaders(),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to fetch subscriptions.');
@@ -38,6 +48,7 @@ export const getSubscriptionById = async (id) => {
     headers: getHeaders(),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Subscription not found.');
@@ -57,6 +68,7 @@ export const addSubscription = async (subData) => {
     body: JSON.stringify(subData),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to create subscription.');
@@ -76,6 +88,7 @@ export const updateSubscription = async (id, subData) => {
     body: JSON.stringify(subData),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to update subscription.');
@@ -94,6 +107,7 @@ export const deleteSubscription = async (id) => {
     headers: getHeaders(),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to delete subscription.');
@@ -112,6 +126,7 @@ export const renewSubscription = async (id, newExpiryDate, newCost) => {
     body: JSON.stringify({ newExpiryDate, newCost }),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to renew subscription.');
@@ -129,6 +144,7 @@ export const getHistory = async () => {
     headers: getHeaders(),
   });
 
+  checkAuthError(res);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || 'Failed to fetch history.');

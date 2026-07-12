@@ -2,6 +2,7 @@ package com.trackmysubs.service;
 
 import com.trackmysubs.dto.AuthRequest;
 import com.trackmysubs.dto.AuthResponse;
+import com.trackmysubs.dto.ResetPasswordRequest;
 import com.trackmysubs.entity.OtpVerification;
 import com.trackmysubs.entity.User;
 import com.trackmysubs.exception.AuthenticationException;
@@ -73,5 +74,30 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail());
         return new AuthResponse(token);
+    }
+
+    @Transactional
+    public String resetPassword(ResetPasswordRequest request) {
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            throw new InvalidRequestException("Email is required");
+        }
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidRequestException("User not found"));
+
+        OtpVerification verification = otpVerificationRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidRequestException("OTP verification is required before resetting password."));
+
+        if (!verification.isVerified() || !verification.getOtpCode().equals(request.getOtp())) {
+            throw new InvalidRequestException("OTP verification is incomplete or invalid.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        otpVerificationRepository.delete(verification);
+
+        return "Password reset successfully";
     }
 }

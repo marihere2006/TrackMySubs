@@ -10,7 +10,6 @@ import { useSubscriptions } from '../context/SubscriptionContext';
 import Button from './ui/Button';
 import Input from './ui/Input';
 import Select from './ui/Select';
-import HeroHeader from './layout/HeroHeader';
 import { CATEGORIES, PAYMENT_METHODS, REMINDER_DAYS, USAGE_FREQUENCIES, BILLING_CYCLES } from '../data/constants';
 import { todayStr } from '../utils/dateUtils';
 import styles from './SubscriptionFormPage.module.css';
@@ -98,14 +97,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
   };
 
   return (
-    <div className={styles.page}>
-      <HeroHeader
-        breadcrumb={mode === 'edit' ? 'Edit Subscription' : 'Add Subscription'}
-        title={mode === 'edit' ? 'Edit Subscription' : 'Add New Subscription'}
-        subtitle={mode === 'edit' ? 'Update your subscription details.' : 'Track a new subscription service.'}
-      />
-
-      <div className={styles.formCard}>
+    <div className={styles.formCard}>
         {success && (
           <div className={styles.successBanner}>
             ✓ Subscription {mode === 'edit' ? 'updated' : 'added'} successfully! Redirecting…
@@ -268,7 +260,6 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
             </Button>
           </div>
         </form>
-      </div>
     </div>
   );
 };

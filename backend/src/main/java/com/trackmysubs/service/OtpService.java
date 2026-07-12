@@ -29,20 +29,33 @@ public class OtpService {
 
     @Transactional
     public void sendOtp(String email) {
+        validateEmailFormat(email);
+        if (userRepository.existsByEmail(email.trim())) {
+            throw new InvalidRequestException("Email is already registered.");
+        }
+        handleOtpGenerationAndSend(email.trim().toLowerCase());
+    }
+
+    @Transactional
+    public void sendForgotPasswordOtp(String email) {
+        validateEmailFormat(email);
+        if (!userRepository.existsByEmail(email.trim())) {
+            throw new InvalidRequestException("Email is not registered.");
+        }
+        handleOtpGenerationAndSend(email.trim().toLowerCase());
+    }
+
+    private void validateEmailFormat(String email) {
         if (email == null || email.trim().isEmpty()) {
             throw new InvalidRequestException("Email address is required.");
         }
         if (!email.matches("^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$")) {
             throw new InvalidRequestException("Invalid email format.");
         }
+    }
 
-        // Check if email already registered
-        if (userRepository.existsByEmail(email.trim())) {
-            throw new InvalidRequestException("Email is already registered.");
-        }
-
+    private void handleOtpGenerationAndSend(String normalizedEmail) {
         LocalDateTime now = LocalDateTime.now();
-        String normalizedEmail = email.trim().toLowerCase();
         OtpVerification verification = otpRepository.findByEmail(normalizedEmail).orElse(null);
 
         String otpCode = generate6DigitOtp();

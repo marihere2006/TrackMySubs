@@ -22,6 +22,7 @@ const LoginPage = () => {
     setError('');
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
@@ -82,8 +83,9 @@ const LoginPage = () => {
 
           {/* Password */}
           <div className={styles.field}>
-            <div className={styles.labelRow}>
+            <div className={styles.labelRow} style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
               <label htmlFor="login-password" className={styles.label}>Password</label>
+              <Link to="/forgot-password" className={styles.link} style={{ fontSize: '0.85rem' }}>Forgot password?</Link>
             </div>
             <div className={styles.inputWrap}>
               <Lock size={16} className={styles.inputIcon} />

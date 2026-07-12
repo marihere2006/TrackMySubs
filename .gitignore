@@ -1,20 +1,49 @@
-# Frontend ignores
+# =============================================
+# Frontend
+# =============================================
 frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.*
+frontend/.env.local
+frontend/.env.*.local
 frontend/.eslintcache
 
-# Backend ignores
+# =============================================
+# Backend — Secrets (NEVER commit these)
+# =============================================
+backend/src/main/resources/application.properties
+backend/src/main/resources/application-*.properties
+# Keep the example template:
+!backend/src/main/resources/application.properties.example
+
+# Backend build output
 backend/target/
+
+# IDE / Eclipse
 backend/.classpath
 backend/.project
 backend/.settings/
+*.iml
+.idea/
 
-# General ignores
+# =============================================
+# Credentials & Keys
+# =============================================
+*.csv
+*.pem
+*.key
+*accessKeys*
+*credentials*
+*secret*
+
+# =============================================
+# General
+# =============================================
 .DS_Store
+Thumbs.db
 *.log
 .gemini/
 
-# SQLTools Sessions
+# SQL session files
 *.session.sql

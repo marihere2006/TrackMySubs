@@ -217,7 +217,13 @@ const SubscriptionsPage = () => {
       );
     }
     if (categoryFilter) result = result.filter((s) => s.category === categoryFilter);
-    if (statusFilter) result = result.filter((s) => s.computedStatus === statusFilter);
+    if (statusFilter) {
+      if (statusFilter === 'Active_All') {
+        result = result.filter((s) => s.computedStatus === 'Active' || s.computedStatus === 'Expiring Soon');
+      } else {
+        result = result.filter((s) => s.computedStatus === statusFilter);
+      }
+    }
     if (autoRenewFilter === 'true') result = result.filter((s) => s.autoRenewal === true);
     if (autoRenewFilter === 'false') result = result.filter((s) => s.autoRenewal === false);
     if (priorityFilter) {
@@ -339,7 +345,8 @@ const SubscriptionsPage = () => {
             aria-label="Filter by status"
           >
             <option value="">All Statuses</option>
-            <option value="Active">Active</option>
+            <option value="Active_All">All Active</option>
+            <option value="Active">Active Only</option>
             <option value="Expiring Soon">Expiring Soon</option>
             <option value="Expired">Expired</option>
           </select>

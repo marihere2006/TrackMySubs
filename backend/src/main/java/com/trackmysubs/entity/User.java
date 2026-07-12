@@ -21,6 +21,8 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Subscription> subscriptions = new ArrayList<>();
 
@@ -83,6 +85,8 @@ public class User {
     public void setHistories(List<SubscriptionHistory> histories) {
         this.histories = histories;
     }
+
+
 
     @Column(name = "joined_date", updatable = false)
     private java.time.LocalDateTime joinedDate;

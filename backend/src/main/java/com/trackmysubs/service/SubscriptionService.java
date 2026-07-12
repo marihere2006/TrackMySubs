@@ -27,7 +27,16 @@ public class SubscriptionService {
     private SubscriptionRepository subscriptionRepository;
 
     @Autowired
+    private AIEngineService aiEngineService;
+
+    @Autowired
     private SubscriptionHistoryRepository historyRepository;
+
+    @Autowired
+    private AnalyticsSnapshotService analyticsSnapshotService;
+
+    @Autowired
+    private AIResponseCache aiResponseCache;
 
     private String generateSubscriptionId() {
         return "sub-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 90000 + 10000);
@@ -60,7 +69,13 @@ public class SubscriptionService {
         Subscription sub = new Subscription();
         sub.setId(generateSubscriptionId());
         sub.setServiceName(request.getServiceName());
-        sub.setCategory(request.getCategory());
+        
+        String category = request.getCategory();
+        if (category == null || category.trim().isEmpty()) {
+            category = aiEngineService.categorizeSubscription(request.getServiceName());
+        }
+        sub.setCategory(category);
+        
         sub.setPlanName(request.getPlanName());
         sub.setBillingCycle(request.getBillingCycle());
         sub.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "Other");
@@ -77,6 +92,8 @@ public class SubscriptionService {
         sub.setUser(user);
 
         Subscription saved = subscriptionRepository.save(sub);
+        analyticsSnapshotService.triggerSnapshotForUser(user.getId());
+        aiResponseCache.clearUserCache(user.getId());
         return mapToSubscriptionResponse(saved);
     }
 
@@ -90,7 +107,13 @@ public class SubscriptionService {
         }
 
         sub.setServiceName(request.getServiceName());
-        sub.setCategory(request.getCategory());
+        
+        String category = request.getCategory();
+        if (category == null || category.trim().isEmpty()) {
+            category = aiEngineService.categorizeSubscription(request.getServiceName());
+        }
+        sub.setCategory(category);
+        
         sub.setPlanName(request.getPlanName());
         sub.setBillingCycle(request.getBillingCycle());
         if (request.getPaymentMethod() != null) sub.setPaymentMethod(request.getPaymentMethod());
@@ -105,6 +128,8 @@ public class SubscriptionService {
         sub.setNotes(request.getNotes());
 
         Subscription updated = subscriptionRepository.save(sub);
+        analyticsSnapshotService.triggerSnapshotForUser(user.getId());
+        aiResponseCache.clearUserCache(user.getId());
         return mapToSubscriptionResponse(updated);
     }
 
@@ -113,6 +138,8 @@ public class SubscriptionService {
         Subscription sub = subscriptionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with ID: " + id));
         subscriptionRepository.delete(sub);
+        analyticsSnapshotService.triggerSnapshotForUser(user.getId());
+        aiResponseCache.clearUserCache(user.getId());
     }
 
     @Transactional
@@ -158,6 +185,8 @@ public class SubscriptionService {
         sub.setStatus(SubscriptionStatus.calculateStatus(newExpiryDate));
 
         Subscription updated = subscriptionRepository.save(sub);
+        analyticsSnapshotService.triggerSnapshotForUser(user.getId());
+        aiResponseCache.clearUserCache(user.getId());
         return mapToSubscriptionResponse(updated);
     }
 

@@ -9,6 +9,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 // Pages
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import DashboardPage from '../pages/DashboardPage';
 import SubscriptionsPage from '../pages/SubscriptionsPage';
 import AddSubscriptionPage from '../pages/AddSubscriptionPage';
@@ -17,6 +18,9 @@ import ExpiredPage from '../pages/ExpiredPage';
 import HistoryPage from '../pages/HistoryPage';
 import ProfilePage from '../pages/ProfilePage';
 import NotFoundPage from '../pages/NotFoundPage';
+import AIEnginePage from '../pages/AIEnginePage';
+import AnalyticsPage from '../pages/AnalyticsPage';
+import ReviewSubscriptionsPage from '../pages/ReviewSubscriptionsPage';
 
 // ── Protected route wrapper ─────────────────────────────────
 const ProtectedRoute = ({ children }) => {
@@ -47,8 +51,9 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login"    element={<GuestRoute><LoginPage /></GuestRoute>} />
-      <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+      <Route path="/login"           element={<GuestRoute><LoginPage /></GuestRoute>} />
+      <Route path="/register"        element={<GuestRoute><RegisterPage /></GuestRoute>} />
+      <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
 
       {/* Protected routes */}
       <Route path="/dashboard"         element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
@@ -57,7 +62,10 @@ const AppRoutes = () => {
       <Route path="/edit-subscription/:id" element={<ProtectedRoute><EditSubscriptionPage /></ProtectedRoute>} />
       <Route path="/expired"           element={<ProtectedRoute><ExpiredPage /></ProtectedRoute>} />
       <Route path="/history"           element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+      <Route path="/analytics"         element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+      <Route path="/ai-engine"         element={<ProtectedRoute><AIEnginePage /></ProtectedRoute>} />
       <Route path="/profile"           element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      <Route path="/review-subscriptions" element={<ProtectedRoute><ReviewSubscriptionsPage /></ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<ProtectedRoute><NotFoundPage /></ProtectedRoute>} />

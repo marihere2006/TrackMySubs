@@ -4,6 +4,7 @@ import com.trackmysubs.dto.ApiResponse;
 import com.trackmysubs.dto.AuthRequest;
 import com.trackmysubs.dto.AuthResponse;
 import com.trackmysubs.dto.OtpRequest;
+import com.trackmysubs.dto.ResetPasswordRequest;
 import com.trackmysubs.service.AuthService;
 import com.trackmysubs.service.OtpService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -47,6 +49,20 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest request) {
         AuthResponse result = authService.login(request);
         ApiResponse<AuthResponse> response = new ApiResponse<>(true, "Login successful", result);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/forgot-password-otp")
+    public ResponseEntity<ApiResponse<String>> forgotPasswordOtp(@Valid @RequestBody OtpRequest request) {
+        otpService.sendForgotPasswordOtp(request.getEmail());
+        ApiResponse<String> response = new ApiResponse<>(true, "Verification code sent to registered email", "OTP code sent");
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        String result = authService.resetPassword(request);
+        ApiResponse<String> response = new ApiResponse<>(true, result, "Password reset successfully");
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

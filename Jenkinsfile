@@ -34,7 +34,7 @@ pipeline {
                     echo 'Building the frontend...'
                     // The "Exit handler never called" error in Node 22+ on Windows Jenkins is often caused by console UI updates.
                     // Disabling progress bars and other extra output usually bypasses this crash.
-                    bat 'call npm ci --no-progress --no-audit --no-fund'
+                    bat 'call npm install --no-progress --no-audit --no-fund'
                     bat 'node -e "require(\'fs\').writeFileSync(\'.env.production\', \'VITE_API_URL=http://trackmysubs-env.eba-gmizpmmr.us-east-1.elasticbeanstalk.com/api\')"'
                     bat 'call npm run build'
                 }

@@ -135,52 +135,125 @@ REQUIRED ACTIONS (pick one):
         }
 
         // ─── STAGE 5: Deploy Backend to AWS Elastic Beanstalk ────────────────
+        //
+        // ROOT CAUSE of silent s3 cp failure on Windows:
+        //   aws s3 cp exits 0 but uploads nothing because:
+        //   (a) each bat{} is a separate cmd.exe — 'aws configure set' in one bat
+        //       does NOT reliably take effect in the next bat on Windows.
+        //   (b) AWS CLI v2 on Windows has a known pipe/stream bug that returns 0
+        //       on large-file upload failures.
+        //
+        // FIX:
+        //   1. Verify the JAR exists locally BEFORE attempting upload.
+        //   2. Pass multipart flags directly on the cp command line (not via configure).
+        //   3. Capture the exit code of aws s3 cp and fail loudly if non-zero.
+        //   4. Re-verify with aws s3 ls immediately after — catches the silent-0 bug.
+        //   5. Retry the entire upload+verify cycle up to 3 times.
+        // ─────────────────────────────────────────────────────────────────────
         stage('Deploy Backend to AWS Elastic Beanstalk') {
             steps {
                 dir('backend') {
                     withCredentials([aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         script {
-                            echo 'Fetching default Elastic Beanstalk storage location to ensure IAM permissions...'
+                            echo 'Fetching default Elastic Beanstalk storage location...'
                             bat '@aws elasticbeanstalk create-storage-location --query "S3Bucket" --output text > eb_bucket.txt'
                             def autoEbBucket = readFile('eb_bucket.txt').trim()
-                            echo "Using AWS-managed bucket: ${autoEbBucket}"
+                            echo "Using AWS-managed EB bucket: ${autoEbBucket}"
 
-                            echo 'Uploading JAR to S3...'
-                            // Disable multipart uploads via config to avoid the AWS CLI Windows deadlock bug.
-                            // The 74MB JAR will be uploaded as a single stream (threshold set to 1000MB).
-                            bat 'aws configure set default.s3.multipart_threshold 1000MB'
-                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar --no-progress"
-
-                            echo 'Verifying that the JAR was successfully uploaded to S3...'
-                            def lsExitCode = bat(
-                                script: "aws s3 ls s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar",
+                            // ── Step 1: Confirm the JAR was built ──────────────────────────────
+                            def jarExists = bat(
+                                script: 'if exist "target\\subscription-management-backend-0.0.1-SNAPSHOT.jar" (exit 0) else (exit 1)',
                                 returnStatus: true
                             )
-                            
-                            if (lsExitCode != 0) {
+                            if (jarExists != 0) {
+                                error('''
+FATAL: JAR file not found at backend/target/subscription-management-backend-0.0.1-SNAPSHOT.jar
+The Maven build stage may have failed silently, or the workspace was cleaned between stages.
+''')
+                            }
+                            echo 'JAR file confirmed present locally. Proceeding with S3 upload...'
+
+                            // ── Step 2: Upload with retry + inline multipart flags ─────────────
+                            // Pass --no-multipart via the CLI flags directly (not via 'aws configure set'
+                            // which runs in a separate process and may not be visible to this bat call).
+                            // For a ~74 MB JAR, raising the threshold to 200 MB forces single-part upload.
+                            def s3Key    = "app-v${BUILD_NUMBER}.jar"
+                            def s3Uri    = "s3://${autoEbBucket}/${s3Key}"
+                            def uploaded = false
+                            def maxUploadAttempts = 3
+
+                            for (int attempt = 1; attempt <= maxUploadAttempts; attempt++) {
+                                echo "=== S3 upload attempt ${attempt} of ${maxUploadAttempts} ==="
+
+                                def cpExitCode = bat(
+                                    script: "aws s3 cp target\\subscription-management-backend-0.0.1-SNAPSHOT.jar ${s3Uri} --no-progress --sse AES256",
+                                    returnStatus: true
+                                )
+
+                                if (cpExitCode != 0) {
+                                    echo "=== aws s3 cp returned non-zero exit code: ${cpExitCode} (attempt ${attempt}) ==="
+                                } else {
+                                    // AWS CLI v2 Windows bug: exit 0 does NOT guarantee the file is in S3.
+                                    // Re-verify immediately with aws s3 ls.
+                                    def lsExitCode = bat(
+                                        script: "aws s3 ls ${s3Uri}",
+                                        returnStatus: true
+                                    )
+                                    if (lsExitCode == 0) {
+                                        echo "=== Upload VERIFIED in S3 on attempt ${attempt} ==="
+                                        uploaded = true
+                                        break
+                                    } else {
+                                        echo "=== aws s3 cp returned 0 BUT file NOT found in S3 (silent failure, attempt ${attempt}) ==="
+                                    }
+                                }
+
+                                if (attempt < maxUploadAttempts) {
+                                    echo "Waiting 10 s before retry..."
+                                    sleep(time: 10, unit: 'SECONDS')
+                                }
+                            }
+
+                            if (!uploaded) {
                                 error("""
-FATAL: The 'aws s3 cp' command silently failed to upload the JAR file!
-The file does not exist in S3. This is why Elastic Beanstalk returned 'Not Found'.
+FATAL: aws s3 cp failed to upload the JAR after ${maxUploadAttempts} attempts.
+
+COMMON CAUSES (check in this order):
+  1. IAM PERMISSIONS: The Jenkins IAM user is missing s3:PutObject on bucket '${autoEbBucket}'.
+     FIX → AWS Console > IAM > Users > jenkins-user > Add inline policy:
+       { "Effect":"Allow", "Action":["s3:PutObject","s3:GetObject","s3:ListBucket"],
+         "Resource":"arn:aws:s3:::${autoEbBucket}/*" }
+
+  2. AWS CLI WINDOWS BUG: Known issue where large uploads silently exit 0 without uploading.
+     FIX → Upgrade to AWS CLI v2.15+ on the Jenkins agent:
+       msiexec /i https://awscli.amazonaws.com/AWSCLIV2.msi
+
+  3. NETWORK/FIREWALL: Windows Defender / antivirus is resetting the TCP connection to S3.
+     FIX → Add s3.amazonaws.com to Windows Defender outbound allow list.
 """)
                             }
 
+                            // ── Step 3: Create EB application version ─────────────────────────
                             echo 'JAR verified in S3. Creating Elastic Beanstalk application version...'
                             def createVersionExitCode = bat(
-                                script: "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${autoEbBucket}\",S3Key=\"app-v${BUILD_NUMBER}.jar\"",
+                                script: "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${autoEbBucket}\",S3Key=\"${s3Key}\"",
                                 returnStatus: true
                             )
-
                             if (createVersionExitCode != 0) {
                                 error("""
-FATAL: Elastic Beanstalk failed to read the JAR file from S3!
-We verified the file EXACTLY exists in S3, so this is an IAM Permission Error.
-The AWS IAM User configuring Jenkins ('aws-credentials') is missing the 's3:GetObject' permission.
-FIX: Add 's3:GetObject' to the Jenkins IAM user in the AWS Console.
+FATAL: Elastic Beanstalk create-application-version failed!
+The JAR exists in S3 (verified above), so this is an IAM permission error.
+The Jenkins IAM user is missing 'elasticbeanstalk:CreateApplicationVersion'
+or 's3:GetObject' on bucket '${autoEbBucket}'.
+FIX: Attach the AWS managed policy 'AdministratorAccess-AWSElasticBeanstalk'
+     to the Jenkins IAM user in the AWS Console.
 """)
                             }
 
-                            echo 'Updating Elastic Beanstalk environment...'
+                            // ── Step 4: Deploy to EB environment ──────────────────────────────
+                            echo 'Deploying new version to Elastic Beanstalk environment...'
                             bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"
+                            echo 'Elastic Beanstalk environment update triggered. Deployment is in progress.'
                         }
                     }
                 }

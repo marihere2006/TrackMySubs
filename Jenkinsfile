@@ -35,7 +35,7 @@ pipeline {
                     // The "Exit handler never called" error in Node 22+ on Windows Jenkins is often caused by console UI updates.
                     // Disabling progress bars and other extra output usually bypasses this crash.
                     // Explicitly setting a local cache directory helps avoid Windows system profile permission/corruption issues in Jenkins
-                    powershell '$env:CI="true"; npm ci --cache .npm-cache --no-progress --no-audit --no-fund --no-color --foreground-scripts'
+                    bat 'set CI=true && call npm ci --omit=optional --cache .npm-cache --no-progress --no-audit --no-fund --no-color'
                     bat 'node -e "require(\'fs\').writeFileSync(\'.env.production\', \'VITE_API_URL=http://trackmysubs-env.eba-gmizpmmr.us-east-1.elasticbeanstalk.com/api\')"'
                     bat 'call npm run build'
                 }

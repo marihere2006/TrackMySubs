@@ -91,7 +91,7 @@ pipeline {
                             //   --fetch-retry-maxtimeout  60 s between retries
                             //   --no-progress / --no-color  plain output safe for Jenkins
                             def exitCode = bat(
-                                script: 'call npm ci --omit=optional --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=60000 --cache .npm-cache --no-progress --no-audit --no-fund --no-color',
+                                script: 'call npm ci --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=60000 --cache .npm-cache --no-progress --no-audit --no-fund --no-color',
                                 returnStatus: true
                             )
 

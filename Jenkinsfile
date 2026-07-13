@@ -42,11 +42,41 @@ pipeline {
         }
 
         // ─── STAGE 3: Build Backend (Java/Spring Boot) ───────────────────────
+        //
+        // WHY THE INJECT STEP IS HERE:
+        //   application.properties is listed in .gitignore (intentionally, to keep
+        //   secrets out of the repo). This means the Jenkins workspace NEVER has it
+        //   after a fresh checkout, so Maven packages a JAR with no properties file.
+        //   At runtime, Spring Boot fails to resolve ${app.jwt.secret} → JwtUtil
+        //   bean cannot be created → Tomcat cannot start → EB shows "Degraded".
+        //
+        // FIX:
+        //   Store application.properties as a Jenkins "Secret file" credential with
+        //   ID "trackmysubs-application-properties". This stage writes it into the
+        //   correct resources directory before mvn package runs, so the real values
+        //   are baked into the fat JAR and available to Spring Boot on startup.
+        //
+        // HOW TO ADD THE CREDENTIAL (one-time setup):
+        //   Jenkins → Manage Jenkins → Credentials → (global) → Add Credential
+        //     Kind      : Secret file
+        //     ID        : trackmysubs-application-properties
+        //     File      : upload your local application.properties
+        // ─────────────────────────────────────────────────────────────────────
         stage('Build Backend (Java/Spring Boot)') {
             steps {
+                // Step 1: Inject application.properties from Jenkins Secret File
+                withCredentials([file(credentialsId: 'trackmysubs-application-properties',
+                                      variable: 'APP_PROPS_FILE')]) {
+                    echo 'Injecting application.properties from Jenkins credentials...'
+                    bat "copy /Y \"%APP_PROPS_FILE%\" backend\\src\\main\\resources\\application.properties"
+                    echo 'application.properties injected successfully.'
+                }
+
+                // Step 2: Build the fat JAR (properties file is now present)
                 dir('backend') {
                     echo 'Building backend with Maven...'
                     bat 'mvn clean package -DskipTests --batch-mode --no-transfer-progress'
+                    echo 'Backend JAR built successfully.'
                 }
             }
         }

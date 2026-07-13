@@ -47,3 +47,7 @@ Thumbs.db
 
 # SQL session files
 *.session.sql
+
+# Generated Diagrams
+Block Diagram.png
+ER Diagram.png

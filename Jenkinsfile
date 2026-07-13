@@ -146,10 +146,36 @@ REQUIRED ACTIONS (pick one):
                             echo "Using AWS-managed bucket: ${autoEbBucket}"
 
                             echo 'Uploading JAR to S3...'
-                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar"
+                            // Use --no-progress to prevent Windows CLI buffering crashes on large files
+                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar --no-progress"
 
-                            echo 'Creating Elastic Beanstalk application version...'
-                            bat "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${autoEbBucket}\",S3Key=\"app-v${BUILD_NUMBER}.jar\""
+                            echo 'Verifying that the JAR was successfully uploaded to S3...'
+                            def lsExitCode = bat(
+                                script: "aws s3 ls s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar",
+                                returnStatus: true
+                            )
+                            
+                            if (lsExitCode != 0) {
+                                error("""
+FATAL: The 'aws s3 cp' command silently failed to upload the JAR file!
+The file does not exist in S3. This is why Elastic Beanstalk returned 'Not Found'.
+""")
+                            }
+
+                            echo 'JAR verified in S3. Creating Elastic Beanstalk application version...'
+                            def createVersionExitCode = bat(
+                                script: "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${autoEbBucket}\",S3Key=\"app-v${BUILD_NUMBER}.jar\"",
+                                returnStatus: true
+                            )
+
+                            if (createVersionExitCode != 0) {
+                                error("""
+FATAL: Elastic Beanstalk failed to read the JAR file from S3!
+We verified the file EXACTLY exists in S3, so this is an IAM Permission Error.
+The AWS IAM User configuring Jenkins ('aws-credentials') is missing the 's3:GetObject' permission.
+FIX: Add 's3:GetObject' to the Jenkins IAM user in the AWS Console.
+""")
+                            }
 
                             echo 'Updating Elastic Beanstalk environment...'
                             bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"

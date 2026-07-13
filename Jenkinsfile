@@ -139,14 +139,21 @@ REQUIRED ACTIONS (pick one):
             steps {
                 dir('backend') {
                     withCredentials([aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                        echo 'Uploading JAR to S3...'
-                        bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${EB_BUCKET}/app-v${BUILD_NUMBER}.jar"
+                        script {
+                            echo 'Fetching default Elastic Beanstalk storage location to ensure IAM permissions...'
+                            bat '@aws elasticbeanstalk create-storage-location --query "S3Bucket" --output text > eb_bucket.txt'
+                            def autoEbBucket = readFile('eb_bucket.txt').trim()
+                            echo "Using AWS-managed bucket: ${autoEbBucket}"
 
-                        echo 'Creating Elastic Beanstalk application version...'
-                        bat "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${EB_BUCKET}\",S3Key=\"app-v${BUILD_NUMBER}.jar\""
+                            echo 'Uploading JAR to S3...'
+                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar"
 
-                        echo 'Updating Elastic Beanstalk environment...'
-                        bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"
+                            echo 'Creating Elastic Beanstalk application version...'
+                            bat "aws elasticbeanstalk create-application-version --application-name ${EB_APP_NAME} --version-label v${BUILD_NUMBER} --source-bundle S3Bucket=\"${autoEbBucket}\",S3Key=\"app-v${BUILD_NUMBER}.jar\""
+
+                            echo 'Updating Elastic Beanstalk environment...'
+                            bat "aws elasticbeanstalk update-environment --application-name ${EB_APP_NAME} --environment-name ${EB_ENV_NAME} --version-label v${BUILD_NUMBER}"
+                        }
                     }
                 }
             }

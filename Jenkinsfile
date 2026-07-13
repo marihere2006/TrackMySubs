@@ -145,10 +145,11 @@ REQUIRED ACTIONS (pick one):
                             def autoEbBucket = readFile('eb_bucket.txt').trim()
                             echo "Using AWS-managed bucket: ${autoEbBucket}"
 
-                            echo 'Uploading JAR to S3 (Multipart disabled to prevent silent hang)...'
-                            // Use --no-progress to prevent Windows CLI buffering crashes
-                            // Use --multipart-threshold 100MB to force a single-stream upload (bypasses the AWS CLI Windows multipart deadlock bug for 74MB files)
-                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar --no-progress --multipart-threshold 100MB"
+                            echo 'Uploading JAR to S3...'
+                            // Disable multipart uploads via config to avoid the AWS CLI Windows deadlock bug.
+                            // The 74MB JAR will be uploaded as a single stream (threshold set to 1000MB).
+                            bat 'aws configure set default.s3.multipart_threshold 1000MB'
+                            bat "aws s3 cp target/subscription-management-backend-0.0.1-SNAPSHOT.jar s3://${autoEbBucket}/app-v${BUILD_NUMBER}.jar --no-progress"
 
                             echo 'Verifying that the JAR was successfully uploaded to S3...'
                             def lsExitCode = bat(

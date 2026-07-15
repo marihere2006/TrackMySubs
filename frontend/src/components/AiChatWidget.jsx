@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User, Loader2 } from 'lucide-react';
 import styles from './AiChatWidget.module.css';
 import { sendChatMessage } from '../services/aiService';
+import { useSubscriptions } from '../context/SubscriptionContext';
+import { normalizeAssistantText } from '../utils/aiAssistantUtils';
 
 const AiChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +12,7 @@ const AiChatWidget = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const { reload } = useSubscriptions();
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -31,7 +34,10 @@ const AiChatWidget = () => {
 
     try {
       const res = await sendChatMessage(userMessage);
-      setMessages(prev => [...prev, { id: Date.now(), text: res.response, sender: 'bot' }]);
+      setMessages(prev => [...prev, { id: Date.now(), text: normalizeAssistantText(res.response), sender: 'bot' }]);
+      if (res.action === 'RELOAD') {
+        await reload();
+      }
     } catch (err) {
       setMessages(prev => [...prev, { id: Date.now(), text: "Sorry, I couldn't process your request right now. Check your AI provider configuration.", sender: 'bot', error: true }]);
     } finally {

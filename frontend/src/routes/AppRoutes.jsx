@@ -18,7 +18,6 @@ import ExpiredPage from '../pages/ExpiredPage';
 import HistoryPage from '../pages/HistoryPage';
 import ProfilePage from '../pages/ProfilePage';
 import NotFoundPage from '../pages/NotFoundPage';
-import AIEnginePage from '../pages/AIEnginePage';
 import AnalyticsPage from '../pages/AnalyticsPage';
 import ReviewSubscriptionsPage from '../pages/ReviewSubscriptionsPage';
 
@@ -63,7 +62,6 @@ const AppRoutes = () => {
       <Route path="/expired"           element={<ProtectedRoute><ExpiredPage /></ProtectedRoute>} />
       <Route path="/history"           element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
       <Route path="/analytics"         element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-      <Route path="/ai-engine"         element={<ProtectedRoute><AIEnginePage /></ProtectedRoute>} />
       <Route path="/profile"           element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/review-subscriptions" element={<ProtectedRoute><ReviewSubscriptionsPage /></ProtectedRoute>} />
 

@@ -1,3 +1,3 @@
 package com.trackmysubs.dto.ai;
 
-public record ChatResponse(String response) {}
+public record ChatResponse(String response, String action) {}

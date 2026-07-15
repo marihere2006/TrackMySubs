@@ -81,8 +81,10 @@ const ProfilePage = () => {
       />
 
       <div className={styles.grid}>
-        {/* Profile card */}
-        <div className={styles.profileCard}>
+        {/* Left Column */}
+        <div className={styles.leftColumn}>
+          {/* Profile card */}
+          <div className={styles.profileCard}>
           {/* Avatar */}
           <div className={styles.avatarSection}>
             <div className={styles.avatar}>
@@ -152,26 +154,27 @@ const ProfilePage = () => {
               </div>
             )}
           </div>
-          
-          {/* Danger Zone */}
-          <div className={styles.dangerZone}>
-            <div className={styles.dangerHeader}>
-              <AlertTriangle size={18} /> Danger Zone
-            </div>
-            <p className={styles.dangerDesc}>
-              Permanently delete your account and all your subscription data. This action cannot be undone.
-            </p>
-            <div className={styles.dangerActions}>
-              <button 
-                className={styles.deleteBtn} 
-                onClick={handleDeleteAccount}
-                disabled={deleteLoading}
-              >
-                {deleteLoading ? 'Deleting...' : 'Delete Account'}
-              </button>
-            </div>
+        </div>
+        
+        {/* Danger Zone */}
+        <div className={styles.dangerZone}>
+          <div className={styles.dangerHeader}>
+            <AlertTriangle size={18} /> Danger Zone
+          </div>
+          <p className={styles.dangerDesc}>
+            Permanently delete your account and all your subscription data. This action cannot be undone.
+          </p>
+          <div className={styles.dangerActions}>
+            <button 
+              className={styles.deleteBtn} 
+              onClick={handleDeleteAccount}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? 'Deleting...' : 'Delete Account'}
+            </button>
           </div>
         </div>
+      </div>
 
         {/* Right Column: Preferences & Security */}
         <div className={styles.rightColumn}>

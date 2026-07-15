@@ -119,11 +119,11 @@ export const deleteSubscription = async (id) => {
 /**
  * Renew a subscription with a new expiry date.
  */
-export const renewSubscription = async (id, newExpiryDate, newCost) => {
+export const renewSubscription = async (id, newExpiryDate, newCost, renewFromPreviousExpiry = false) => {
   const res = await fetch(`${BASE_URL}/subscriptions/${id}/renew`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ newExpiryDate, newCost }),
+    body: JSON.stringify({ newExpiryDate, newCost, renewFromPreviousExpiry }),
   });
 
   checkAuthError(res);

@@ -109,8 +109,15 @@ const AiSmartAdd = () => {
             placeholder="e.g. I bought Netflix Premium for ₹649 per month, started last week"
             rows={3}
             onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleParse(); }}
+            disabled={loading}
           />
-          <span className={styles.textareaHint}>Press ⌘↵ or click Parse</span>
+          {loading && (
+            <div className={styles.loadingOverlay}>
+              <RefreshCw className={styles.loadingSpinner} size={20} />
+              <span>Extracting subscription details...</span>
+            </div>
+          )}
+          {!loading && <span className={styles.textareaHint}>Press ⌘↵ or click Parse</span>}
         </div>
 
         {/* Suggestions */}

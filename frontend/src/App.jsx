@@ -7,7 +7,11 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { ToastProvider } from './context/ToastContext';
+import { AIProvider } from './context/AIContext';
+import FloatingAIButton from './components/ai/FloatingAIButton';
+import AIOverlay from './components/ai/AIOverlay';
 import AppRoutes from './routes/AppRoutes';
+import './styles/ai.css';
 import './index.css';
 
 function App() {
@@ -17,7 +21,11 @@ function App() {
         <ToastProvider>
           <AuthProvider>
             <SubscriptionProvider>
-              <AppRoutes />
+              <AIProvider>
+                <AppRoutes />
+                <FloatingAIButton />
+                <AIOverlay />
+              </AIProvider>
             </SubscriptionProvider>
           </AuthProvider>
         </ToastProvider>

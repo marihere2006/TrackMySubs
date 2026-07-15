@@ -116,6 +116,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.serviceName}
               onChange={handleChange}
               error={errors.serviceName}
+              disabled={loading}
               required
             />
             <Input
@@ -125,6 +126,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.planName}
               onChange={handleChange}
               placeholder="e.g. Premium, Basic"
+              disabled={loading}
             />
             <Select
               id="category"
@@ -134,6 +136,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               onChange={handleChange}
               options={CATEGORIES}
               error={errors.category}
+              disabled={loading}
               required
             />
             <Select
@@ -143,6 +146,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.billingCycle}
               onChange={handleChange}
               options={BILLING_CYCLES}
+              disabled={loading}
               required
             />
             <Input
@@ -153,6 +157,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.cost}
               onChange={handleChange}
               error={errors.cost}
+              disabled={loading}
               required
               min="0"
               step="0.01"
@@ -164,6 +169,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.paymentMethod}
               onChange={handleChange}
               options={PAYMENT_METHODS}
+              disabled={loading}
               required
             />
             <Select
@@ -173,6 +179,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.autoRenewal.toString()}
               onChange={handleChange}
               options={[{value: 'true', label: 'Yes'}, {value: 'false', label: 'No'}]}
+              disabled={loading}
               required
             />
             <Select
@@ -182,6 +189,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.reminderDays.toString()}
               onChange={handleChange}
               options={REMINDER_DAYS}
+              disabled={loading}
               required
             />
             <Select
@@ -191,6 +199,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.usageFrequency}
               onChange={handleChange}
               options={USAGE_FREQUENCIES}
+              disabled={loading}
               required
             />
             <Input
@@ -200,6 +209,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               type="url"
               value={form.website}
               onChange={handleChange}
+              disabled={loading}
             />
             <Input
               id="startDate"
@@ -209,6 +219,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.startDate}
               onChange={handleChange}
               error={errors.startDate}
+              disabled={loading}
               required
             />
             <Input
@@ -219,6 +230,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               value={form.expiryDate}
               onChange={handleChange}
               error={errors.expiryDate}
+              disabled={loading}
               hint={
                 form.startDate && form.expiryDate && form.expiryDate > form.startDate
                   ? `Duration will be auto-calculated from dates`
@@ -235,6 +247,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
                 name="notes"
                 value={form.notes}
                 onChange={handleChange}
+                disabled={loading}
                 className={styles.textarea}
                 rows={3}
               />
@@ -247,6 +260,7 @@ const SubscriptionForm = ({ initialData, subscriptionId, mode = 'add' }) => {
               type="button"
               icon={X}
               onClick={() => navigate('/subscriptions')}
+              disabled={loading}
             >
               Cancel
             </Button>

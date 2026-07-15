@@ -388,7 +388,93 @@
 
 .resultCount { margin-top: 10px; font-size: 0.8125rem; color: var(--text-muted); }
 
+.mobileCardList {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobileCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mobileCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+
+.mobileCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mobileService {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.mobileServiceName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.mobileCost {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobileCardBody {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: 12px 0;
+}
+
+.mobileCardDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobileCardLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.mobileCardValue {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.mobileCardFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 640px) {
   .toolbar { flex-direction: column; align-items: stretch; }
   .filters, .searchWrap, .addBtn { width: 100%; }
+  .tableWrap { display: none; }
+  .mobileCardList { display: flex; }
 }

@@ -143,13 +143,15 @@ public class SubscriptionService {
     }
 
     @Transactional
-    public SubscriptionResponse renewSubscription(String id, LocalDate newExpiryDate, java.math.BigDecimal newCost, User user) {
+    public SubscriptionResponse renewSubscription(String id, LocalDate newExpiryDate, java.math.BigDecimal newCost, boolean renewFromPreviousExpiry, User user) {
         Subscription sub = subscriptionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found with ID: " + id));
 
         LocalDate today = LocalDate.now();
-        if (newExpiryDate.isBefore(today) || newExpiryDate.isEqual(today)) {
-            throw new InvalidRequestException("New expiry date must be in the future");
+        LocalDate newStartDate = renewFromPreviousExpiry ? sub.getExpiryDate() : today;
+
+        if (newExpiryDate.isBefore(newStartDate) || newExpiryDate.isEqual(newStartDate)) {
+            throw new InvalidRequestException("New expiry date must be in the future relative to the start date");
         }
 
         // 1. Save old state to history
@@ -177,7 +179,7 @@ public class SubscriptionService {
 
         // 2. Update active subscription
         sub.setRenewalCount(sub.getRenewalCount() != null ? sub.getRenewalCount() + 1 : 1);
-        sub.setStartDate(today);
+        sub.setStartDate(newStartDate);
         sub.setExpiryDate(newExpiryDate);
         if (newCost != null) {
             sub.setCost(newCost);

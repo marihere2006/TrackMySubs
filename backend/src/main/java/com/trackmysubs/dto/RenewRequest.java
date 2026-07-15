@@ -11,6 +11,8 @@ public class RenewRequest {
 
     private BigDecimal newCost;
 
+    private Boolean renewFromPreviousExpiry;
+
     public RenewRequest() {}
 
     public RenewRequest(LocalDate newExpiryDate, BigDecimal newCost) {
@@ -32,5 +34,13 @@ public class RenewRequest {
 
     public void setNewCost(BigDecimal newCost) {
         this.newCost = newCost;
+    }
+
+    public Boolean getRenewFromPreviousExpiry() {
+        return renewFromPreviousExpiry;
+    }
+
+    public void setRenewFromPreviousExpiry(Boolean renewFromPreviousExpiry) {
+        this.renewFromPreviousExpiry = renewFromPreviousExpiry;
     }
 }

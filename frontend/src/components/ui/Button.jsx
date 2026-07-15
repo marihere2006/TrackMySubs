@@ -1,7 +1,8 @@
 // ============================================================
-// Button — Premium Reusable UI Component
+// Button - Premium Reusable UI Component
 // ============================================================
 
+import { Check, X } from 'lucide-react';
 import styles from './Button.module.css';
 
 const Button = ({
@@ -13,6 +14,10 @@ const Button = ({
   iconPosition = 'left',
   disabled = false,
   loading = false,
+  success = false,
+  error = false,
+  successText,
+  errorText,
   onClick,
   type = 'button',
   className = '',
@@ -24,10 +29,21 @@ const Button = ({
     size !== 'md' && styles[`btn-${size}`],
     fullWidth && styles['btn-full'],
     loading && styles['btn-loading'],
+    success && styles['btn-success-state'],
+    error && styles['btn-error-state'],
     className,
   ]
     .filter(Boolean)
     .join(' ');
+
+  let content = children;
+  if (loading) {
+    content = <span className={styles.loadingText}>{children}</span>;
+  } else if (success) {
+    content = <span>{successText || 'Success'}</span>;
+  } else if (error) {
+    content = <span>{errorText || 'Error'}</span>;
+  }
 
   return (
     <button
@@ -39,9 +55,11 @@ const Button = ({
       {...rest}
     >
       {loading && <span className={styles.spinner} aria-hidden="true" />}
-      {Icon && iconPosition === 'left' && !loading && <Icon size={15} />}
-      <span className={loading ? styles.loadingText : undefined}>{children}</span>
-      {Icon && iconPosition === 'right' && !loading && <Icon size={15} />}
+      {success && <Check size={14} aria-hidden="true" />}
+      {error && <X size={14} aria-hidden="true" />}
+      {Icon && iconPosition === 'left' && !loading && !success && !error && <Icon size={15} />}
+      {content}
+      {Icon && iconPosition === 'right' && !loading && !success && !error && <Icon size={15} />}
     </button>
   );
 };

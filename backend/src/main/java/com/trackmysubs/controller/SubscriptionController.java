@@ -72,7 +72,12 @@ public class SubscriptionController {
             @PathVariable String id,
             @Valid @RequestBody RenewRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        SubscriptionResponse renewed = subscriptionService.renewSubscription(id, request.getNewExpiryDate(), request.getNewCost(), userDetails.getUser());
+        SubscriptionResponse renewed = subscriptionService.renewSubscription(
+                id,
+                request.getNewExpiryDate(),
+                request.getNewCost(),
+                Boolean.TRUE.equals(request.getRenewFromPreviousExpiry()),
+                userDetails.getUser());
         ApiResponse<SubscriptionResponse> response = new ApiResponse<>(true, "Subscription renewed successfully", renewed);
         return ResponseEntity.ok(response);
     }

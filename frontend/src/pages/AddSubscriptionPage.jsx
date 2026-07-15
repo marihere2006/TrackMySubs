@@ -43,8 +43,9 @@ const AddSubscriptionPage = () => {
         subtitle="Choose how you'd like to add your subscription."
       />
 
-      {/* Method Selector */}
-      <div className={styles.methodGrid}>
+      <div className={styles.pageContent}>
+        {/* Method Selector */}
+        <div className={styles.methodGrid}>
         {METHODS.map((method) => {
           const Icon = method.icon;
           const isActive = activeMethod === method.id;
@@ -96,6 +97,7 @@ const AddSubscriptionPage = () => {
           {activeMethod === 'ai'     && <AiSmartAdd />}
         </motion.div>
       </AnimatePresence>
+      </div>
     </div>
   );
 };

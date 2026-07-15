@@ -1,6 +1,4 @@
-// ============================================================
-// AI Service — API calls to backend AI endpoints
-// ============================================================
+// AI Service - API calls to backend AI endpoints
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 const TOKEN_KEY = 'sms_token';
@@ -14,15 +12,23 @@ const checkAuthError = (res) => {
   }
 };
 
-const getHeaders = () => {
+const getHeaders = (includeJson = true) => {
   const token = localStorage.getItem(TOKEN_KEY);
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+  const headers = {
+    Accept: 'application/json',
   };
+
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
 };
 
-// ── Existing AI endpoints ────────────────────────────
 export const getAiDashboard = async () => {
   const res = await fetch(`${BASE_URL}/ai/dashboard`, { headers: getHeaders() });
   checkAuthError(res);
@@ -30,6 +36,7 @@ export const getAiDashboard = async () => {
   const data = await res.json();
   return data.data;
 };
+
 export const getInsights = async () => {
   const res = await fetch(`${BASE_URL}/ai/insights`, { headers: getHeaders() });
   checkAuthError(res);
@@ -86,11 +93,13 @@ export const getTimeline = async () => {
   return data.data;
 };
 
-export const sendChatMessage = async (message) => {
+export const sendChatMessage = async (message, options = {}) => {
+  const payload = typeof message === 'object' && message !== null ? message : { message };
   const res = await fetch(`${BASE_URL}/ai/chat`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ message }),
+    signal: options.signal,
+    body: JSON.stringify(payload),
   });
   checkAuthError(res);
   if (!res.ok) throw new Error('Failed to send chat message.');
@@ -106,12 +115,6 @@ export const categorizeService = async (serviceName) => {
   return data.data.category;
 };
 
-// ── NEW: AI Smart Add ─────────────────────────────────
-/**
- * Parse a natural-language description into a subscription DTO
- * @param {string} text - e.g. "I bought Netflix Premium for ₹649/month"
- * @returns {Promise<Object>} - Pre-filled SubscriptionRequest fields
- */
 export const smartAdd = async (text) => {
   const res = await fetch(`${BASE_URL}/ai/smart-add`, {
     method: 'POST',
@@ -127,12 +130,6 @@ export const smartAdd = async (text) => {
   return data.data;
 };
 
-// ── NEW: Bank Statement Upload ────────────────────────
-/**
- * Upload a bank statement PDF for subscription detection
- * @param {File} file - PDF file
- * @returns {Promise<Array>} - Array of DetectedSubscriptionDTO
- */
 export const uploadBankStatement = async (file) => {
   const token = localStorage.getItem(TOKEN_KEY);
   const formData = new FormData();
@@ -140,7 +137,7 @@ export const uploadBankStatement = async (file) => {
 
   const res = await fetch(`${BASE_URL}/bank-statement/upload`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` }, // No Content-Type — let browser set multipart
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
   checkAuthError(res);
@@ -149,14 +146,9 @@ export const uploadBankStatement = async (file) => {
     throw new Error(err.message || 'Failed to process bank statement.');
   }
   const data = await res.json();
-  return data.data; // Array of DetectedSubscriptionDTO
+  return data.data;
 };
 
-/**
- * Confirm and create subscriptions from detected list
- * @param {Array} detectedList - Selected DetectedSubscriptionDTO items
- * @returns {Promise<Array>} - Created subscriptions
- */
 export const confirmDetectedSubscriptions = async (detectedList) => {
   const res = await fetch(`${BASE_URL}/bank-statement/confirm`, {
     method: 'POST',
@@ -172,7 +164,6 @@ export const confirmDetectedSubscriptions = async (detectedList) => {
   return data.data;
 };
 
-// ── Analytics ─────────────────────────────────────────
 export const getAnalyticsSnapshots = async () => {
   const res = await fetch(`${BASE_URL}/analytics/snapshots`, { headers: getHeaders() });
   checkAuthError(res);

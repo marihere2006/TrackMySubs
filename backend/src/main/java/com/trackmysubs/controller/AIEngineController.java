@@ -92,6 +92,9 @@ public class AIEngineController {
 
     @PostMapping("/chat")
     public ResponseEntity<ApiResponse<ChatResponse>> chat(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody ChatRequest request) {
+        if (request == null || request.message() == null || request.message().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Message cannot be empty"));
+        }
         ChatResponse response = aiEngineService.chat(userDetails.getUser(), request);
         return ResponseEntity.ok(new ApiResponse<>(true, "Chat response generated successfully", response));
     }

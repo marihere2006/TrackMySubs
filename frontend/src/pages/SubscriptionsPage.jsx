@@ -133,7 +133,7 @@ const ActionMenu = ({ sub, onView, onEdit, onRenew, onDelete }) => {
               <Pencil size={13} />
               Edit
             </button>
-            {sub.computedStatus === 'Expired' && (
+            {(sub.computedStatus === 'Expired' || sub.computedStatus === 'Expiring Soon') && (
               <button
                 className={`${styles.menuItem} ${styles.menuItemRenew}`}
                 onClick={handle(onRenew)}
@@ -191,6 +191,7 @@ const SubscriptionsPage = () => {
   const [renewLoading, setRenewLoading] = useState(false);
   const [newExpiryDate, setNewExpiryDate] = useState('');
   const [newCost, setNewCost] = useState('');
+  const [renewFromPreviousExpiry, setRenewFromPreviousExpiry] = useState(true);
   const [renewError, setRenewError] = useState('');
 
   // ── Sort handler ─────────────────────────────────────────
@@ -264,6 +265,7 @@ const SubscriptionsPage = () => {
     setRenewModal(sub);
     setNewExpiryDate('');
     setNewCost(sub.cost);
+    setRenewFromPreviousExpiry(true);
     setRenewError('');
   }, []);
 
@@ -278,6 +280,10 @@ const SubscriptionsPage = () => {
       setRenewError('New expiry date must be after today.');
       return;
     }
+    if (renewFromPreviousExpiry && newExpiryDate <= renewModal.expiryDate) {
+      setRenewError('New expiry date must be after the previous expiry date.');
+      return;
+    }
     if (newExpiryDate <= renewModal.startDate) {
       setRenewError('New expiry date must be after the start date.');
       return;
@@ -285,7 +291,7 @@ const SubscriptionsPage = () => {
     setRenewLoading(true);
     setRenewError('');
     try {
-      await renewSub(renewModal.id, newExpiryDate, Number(newCost));
+      await renewSub(renewModal.id, newExpiryDate, Number(newCost), renewFromPreviousExpiry);
       setRenewModal(null);
     } catch (err) {
       setRenewError(err.message || 'Renewal failed.');
@@ -487,6 +493,55 @@ const SubscriptionsPage = () => {
           </table>
         )}
       </div>
+      
+      {/* ── Mobile Card Layout ── */}
+      {!loading && filtered.length > 0 && (
+        <div className={styles.mobileCardList}>
+          {filtered.map((sub) => {
+            const days = daysUntilExpiry(sub.expiryDate);
+            return (
+              <div key={sub.id} className={styles.mobileCard} onClick={() => setSelectedSubscription(sub)}>
+                <div className={styles.mobileCardHeader}>
+                  <div className={styles.mobileService}>
+                    <ServiceLogo serviceName={sub.serviceName} website={sub.website} size={32} />
+                    <div>
+                      <h4 className={styles.mobileServiceName}>{sub.serviceName}</h4>
+                      <span className={styles.categoryTag}>{sub.category}</span>
+                    </div>
+                  </div>
+                  <div className={styles.mobileCost}>{formatCurrency(sub.cost)}</div>
+                </div>
+                <div className={styles.mobileCardBody}>
+                  <div className={styles.mobileCardDetail}>
+                    <span className={styles.mobileCardLabel}>Expiry</span>
+                    <span className={styles.mobileCardValue}>
+                      {formatDate(sub.expiryDate)}
+                      {days >= 0 && days <= 7 && (
+                        <span className={styles.expiryWarn}>
+                          ({days === 0 ? 'today' : `${days}d left`})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className={styles.mobileCardDetail}>
+                    <span className={styles.mobileCardLabel}>Status</span>
+                    <Badge label={sub.computedStatus} dot />
+                  </div>
+                </div>
+                <div className={styles.mobileCardFooter}>
+                  <ActionMenu
+                    sub={sub}
+                    onView={() => setSelectedSubscription(sub)}
+                    onEdit={() => navigate(`/edit-subscription/${sub.id}`)}
+                    onRenew={() => openRenewModal(sub)}
+                    onDelete={() => setDeleteModal(sub)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {!loading && filtered.length > 0 && (
         <p className={styles.resultCount}>
@@ -545,8 +600,24 @@ const SubscriptionsPage = () => {
                 className={`${styles.renewDateInput} ${renewError ? styles.inputErr : ''}`}
               />
               {renewError && <p className={styles.renewError}>{renewError}</p>}
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', marginBottom: '8px' }}>
+                <input
+                  type="checkbox"
+                  id="renew-from-expiry"
+                  checked={renewFromPreviousExpiry}
+                  onChange={(e) => setRenewFromPreviousExpiry(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="renew-from-expiry" style={{ fontSize: '0.875rem', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  Renew from previous expiry date
+                </label>
+              </div>
+
               <p className={styles.renewHint}>
-                New start date will be set to <strong>today</strong>. Previous period will be archived to history.
+                {renewFromPreviousExpiry 
+                  ? <>New start date will be set to the <strong>previous expiry date</strong>. Previous period will be archived to history.</>
+                  : <>New start date will be set to <strong>today</strong>. Previous period will be archived to history.</>}
               </p>
             </div>
           </div>

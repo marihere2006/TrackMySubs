@@ -215,10 +215,22 @@ const AnalyticsPage = () => {
   // Category spending trend from snapshots
   const categoryTrend = useMemo(() => {
     if (!hasHistory) return [];
-    return snapshots.slice(-8).map(s => ({
-      month: new Date(s.snapshotDate).toLocaleString('default', { month: 'short', year: '2-digit' }),
-      ...(s.categoryBreakdown || {}),
-    }));
+    return snapshots.slice(-8).map(s => {
+      let breakdown = {};
+      if (s.categoryBreakdown) {
+        try {
+          breakdown = typeof s.categoryBreakdown === 'string'
+            ? JSON.parse(s.categoryBreakdown)
+            : s.categoryBreakdown;
+        } catch (e) {
+          console.error("Failed to parse categoryBreakdown", e);
+        }
+      }
+      return {
+        month: new Date(s.snapshotDate).toLocaleString('default', { month: 'short', year: '2-digit' }),
+        ...breakdown,
+      };
+    });
   }, [snapshots, hasHistory]);
 
   const uniqueCategories = useMemo(() => {
@@ -268,10 +280,12 @@ const AnalyticsPage = () => {
     return (
       <div className={styles.page}>
         <HeroHeader breadcrumb="Analytics" title="Analytics" subtitle="Loading your subscription insights..." />
-        <div className={styles.grid}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} variant="chart" height={280} />
-          ))}
+        <div className={styles.pageContent}>
+          <div className={styles.grid}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} variant="chart" height={280} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -285,8 +299,9 @@ const AnalyticsPage = () => {
         subtitle="Deep insights into your subscription spending and trends."
       />
 
-      {/* Summary Stats */}
-      <div className={styles.summaryRow}>
+      <div className={styles.pageContent}>
+        {/* Summary Stats */}
+        <div className={styles.summaryRow}>
         {[
           { label: 'Total Monthly', value: formatCurrency(monthlyTotal), color: 'var(--primary-500)' },
           { label: 'Active Subs', value: activeSubscriptions.length, color: 'var(--success-500)' },
@@ -549,6 +564,7 @@ const AnalyticsPage = () => {
           ) : <NoDataState title="No data yet" />}
         </ChartCard>
 
+        </div>
       </div>
     </div>
   );

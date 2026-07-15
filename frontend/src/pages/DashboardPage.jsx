@@ -127,8 +127,9 @@ const DashboardPage = () => {
         }
       />
 
-      {/* Section 2: Summary Cards */}
-      <div className="stats-grid">
+      <div className={styles.pageContent}>
+        {/* Section 2: Summary Cards */}
+        <div className="stats-grid">
         <StatCard
           title="Total Subscriptions"
           value={subscriptions.length}
@@ -317,6 +318,7 @@ const DashboardPage = () => {
         onClose={() => setSelectedSubscription(null)}
         subscription={selectedSubscription}
       />
+      </div>
     </div>
   );
 };

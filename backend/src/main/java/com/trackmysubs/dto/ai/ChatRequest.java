@@ -1,3 +1,3 @@
 package com.trackmysubs.dto.ai;
 
-public record ChatRequest(String message) {}
+public record ChatRequest(String message, String workflowType) {}

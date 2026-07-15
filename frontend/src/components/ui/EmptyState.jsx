@@ -2,8 +2,9 @@
 // EmptyState — Reusable empty state component
 // ============================================================
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styles from './EmptyState.module.css';
+import Button from './Button';
 
 const EmptyState = ({
   icon: Icon,
@@ -14,6 +15,8 @@ const EmptyState = ({
   onAction,
   className = '',
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div className={`${styles.wrap} ${className}`}>
       {Icon && (
@@ -23,15 +26,15 @@ const EmptyState = ({
       )}
       <h3 className={styles.title}>{title}</h3>
       {description && <p className={styles.description}>{description}</p>}
-      {actionLabel && actionTo && (
-        <Link to={actionTo} className={styles.actionBtn}>
-          {actionLabel}
-        </Link>
-      )}
-      {actionLabel && onAction && (
-        <button onClick={onAction} className={styles.actionBtn}>
-          {actionLabel}
-        </button>
+      {actionLabel && (actionTo || onAction) && (
+        <div className={styles.actionWrap}>
+          <Button
+            onClick={actionTo ? () => navigate(actionTo) : onAction}
+            variant="primary"
+          >
+            {actionLabel}
+          </Button>
+        </div>
       )}
     </div>
   );

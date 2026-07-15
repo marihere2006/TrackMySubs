@@ -150,7 +150,8 @@
   border-top: 1px solid var(--border-color);
 }
 
-/* Right Column Panels */
+/* Column Wrappers */
+.leftColumn,
 .rightColumn {
   display: flex;
   flex-direction: column;

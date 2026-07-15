@@ -97,9 +97,9 @@ export const SubscriptionProvider = ({ children }) => {
     }
   };
 
-  const renewSub = async (id, newExpiryDate, newCost) => {
+  const renewSub = async (id, newExpiryDate, newCost, renewFromPreviousExpiry) => {
     try {
-      const updated = await renewSubscription(id, newExpiryDate, newCost);
+      const updated = await renewSubscription(id, newExpiryDate, newCost, renewFromPreviousExpiry);
       await loadData();
       const withStatus = { ...updated, computedStatus: getStatus(updated.expiryDate, updated.reminderDays) };
       showSuccess(`${updated.serviceName} renewed successfully!`, 'Renewed');

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Beaker, TrendingDown, DollarSign, Activity, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useSubscriptions } from '../context/SubscriptionContext';
 import { formatCurrency } from '../utils/formatUtils';
+import { getCurrentMonthContribution } from '../utils/spendingUtils';
 import styles from './SimulationPanel.module.css';
 
 const BILLING_MULTIPLIERS = {
@@ -17,21 +18,22 @@ const BILLING_MULTIPLIERS = {
 };
 
 const SimulationPanel = () => {
-  const { activeSubscriptions, monthlyTotal } = useSubscriptions();
+  const { subscriptions, monthlyTotal } = useSubscriptions();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState('cancel'); // 'cancel' | 'annual'
   const [selectedId, setSelectedId] = useState('');
 
   const selected = useMemo(
-    () => activeSubscriptions.find(s => s.id === selectedId),
-    [activeSubscriptions, selectedId]
+    () => subscriptions.find(s => s.id === selectedId),
+    [subscriptions, selectedId]
   );
 
   const simulation = useMemo(() => {
     if (!selected) return null;
+    const selectedContribution = getCurrentMonthContribution(selected);
 
     if (mode === 'cancel') {
-      const newMonthly = monthlyTotal - Number(selected.cost);
+      const newMonthly = Math.max(monthlyTotal - selectedContribution, 0);
       const savings = monthlyTotal - newMonthly;
       const yearlySavings = savings * 12;
       // Health score impact: removing a subscription slightly improves score
@@ -53,7 +55,9 @@ const SimulationPanel = () => {
       const currentAnnual = Number(selected.cost) * 12;
       const discountedAnnual = currentAnnual * (1 - discountRate);
       const savings = currentAnnual - discountedAnnual;
-      const newMonthly = monthlyTotal - Number(selected.cost) + (discountedAnnual / 12);
+      const newMonthly = selectedContribution > 0
+        ? Math.max(monthlyTotal - selectedContribution + (discountedAnnual / 12), 0)
+        : monthlyTotal;
       return {
         label: `Switch ${selected.serviceName} to Annual`,
         newMonthly,
@@ -68,7 +72,7 @@ const SimulationPanel = () => {
     return null;
   }, [selected, mode, monthlyTotal]);
 
-  if (activeSubscriptions.length === 0) return null;
+  if (subscriptions.length === 0) return null;
 
   return (
     <motion.div
@@ -123,7 +127,7 @@ const SimulationPanel = () => {
                 onChange={e => setSelectedId(e.target.value)}
               >
                 <option value="">— Select a subscription —</option>
-                {activeSubscriptions.map(s => (
+                {subscriptions.map(s => (
                   <option key={s.id} value={s.id}>
                     {s.serviceName} ({formatCurrency(s.cost)}/mo)
                   </option>

@@ -32,7 +32,7 @@ const ChatWindow = ({ onClose }) => {
 
   const emptyInsights = useMemo(() => ([
     { label: 'Current page', value: pageContext.pageLabel },
-    { label: 'Monthly spend', value: formatCurrency(monthlyTotal) },
+    { label: 'Current month spend', value: formatCurrency(monthlyTotal) },
     { label: 'Health score', value: dashboard?.healthScore?.healthScore != null ? `${dashboard.healthScore.healthScore}/100` : '-' },
   ]), [dashboard?.healthScore?.healthScore, monthlyTotal, pageContext.pageLabel]);
 

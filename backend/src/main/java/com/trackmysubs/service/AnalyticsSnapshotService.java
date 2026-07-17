@@ -25,15 +25,18 @@ public class AnalyticsSnapshotService {
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final MonthlySpendingCalculator monthlySpendingCalculator;
 
     public AnalyticsSnapshotService(AnalyticsSnapshotRepository snapshotRepository,
                                     SubscriptionRepository subscriptionRepository,
                                     UserRepository userRepository,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    MonthlySpendingCalculator monthlySpendingCalculator) {
         this.snapshotRepository = snapshotRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.monthlySpendingCalculator = monthlySpendingCalculator;
     }
 
     /**
@@ -72,7 +75,7 @@ public class AnalyticsSnapshotService {
         int active = 0;
         int expired = 0;
         int expiringSoon = 0;
-        BigDecimal totalMonthlySpend = BigDecimal.ZERO;
+        BigDecimal totalMonthlySpend = monthlySpendingCalculator.calculateRunningSpend(subscriptions, snapshotDate);
         
         Map<String, BigDecimal> categorySpend = new HashMap<>();
 
@@ -84,15 +87,14 @@ public class AnalyticsSnapshotService {
                 if ("Expiring Soon".equalsIgnoreCase(status)) {
                     expiringSoon++;
                 }
-                
-                // Calculate monthly equivalent cost
-                BigDecimal monthlyCost = calculateMonthlyEquivalent(sub.getCost(), sub.getBillingCycle());
-                totalMonthlySpend = totalMonthlySpend.add(monthlyCost);
-                
-                String category = sub.getCategory() != null && !sub.getCategory().isEmpty() ? sub.getCategory() : "Other";
-                categorySpend.put(category, categorySpend.getOrDefault(category, BigDecimal.ZERO).add(monthlyCost));
             } else if ("Expired".equalsIgnoreCase(status)) {
                 expired++;
+            }
+
+            if (monthlySpendingCalculator.isCurrentlyRunning(sub, snapshotDate)) {
+                BigDecimal currentMonthCost = sub.getCost() == null ? BigDecimal.ZERO : sub.getCost();
+                String category = sub.getCategory() != null && !sub.getCategory().isEmpty() ? sub.getCategory() : "Other";
+                categorySpend.put(category, categorySpend.getOrDefault(category, BigDecimal.ZERO).add(currentMonthCost));
             }
         }
         
@@ -110,24 +112,6 @@ public class AnalyticsSnapshotService {
         
         snapshotRepository.save(snapshot);
     }
-    
-    private BigDecimal calculateMonthlyEquivalent(BigDecimal cost, String billingCycle) {
-        if (cost == null) return BigDecimal.ZERO;
-        if (billingCycle == null) return cost;
-        
-        switch (billingCycle.toLowerCase()) {
-            case "yearly":
-            case "annual":
-                return cost.divide(BigDecimal.valueOf(12), 2, java.math.RoundingMode.HALF_UP);
-            case "quarterly":
-                return cost.divide(BigDecimal.valueOf(3), 2, java.math.RoundingMode.HALF_UP);
-            case "weekly":
-                return cost.multiply(BigDecimal.valueOf(4.33)).setScale(2, java.math.RoundingMode.HALF_UP);
-            default:
-                return cost;
-        }
-    }
-
     public List<AnalyticsSnapshot> getSnapshotsForUser(Long userId) {
         return snapshotRepository.findByUserIdOrderBySnapshotDateAsc(userId);
     }

@@ -303,7 +303,7 @@ const AnalyticsPage = () => {
         {/* Summary Stats */}
         <div className={styles.summaryRow}>
         {[
-          { label: 'Total Monthly', value: formatCurrency(monthlyTotal), color: 'var(--primary-500)' },
+          { label: 'Current Month', value: formatCurrency(monthlyTotal), color: 'var(--primary-500)' },
           { label: 'Active Subs', value: activeSubscriptions.length, color: 'var(--success-500)' },
           { label: 'Yearly Projection', value: formatCurrency(monthlyTotal * 12), color: 'var(--violet-500)' },
           { label: 'Data Points', value: `${snapshots.length} snapshots`, color: 'var(--teal-500)' },
@@ -319,7 +319,7 @@ const AnalyticsPage = () => {
       {!hasHistory && (
         <div className={styles.collectingNotice}>
           📊 <strong>Historical data is being collected.</strong> Trend charts will appear as you use the application.
-          Currently showing current-state analytics from your {subscriptions.length} subscriptions.
+          Currently showing current-state analytics from your {activeSubscriptions.length} running subscriptions.
         </div>
       )}
 
@@ -327,7 +327,7 @@ const AnalyticsPage = () => {
       <div className={styles.grid}>
 
         {/* 1. Monthly Spending Trend */}
-        <ChartCard title="📈 Monthly Spending Trend" subtitle="Your spending over time" index={0}>
+        <ChartCard title="📈 Running Spending Trend" subtitle="Your running subscription spend over time" index={0}>
           {hasHistory ? (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={spendingTrend}>
@@ -348,7 +348,7 @@ const AnalyticsPage = () => {
         </ChartCard>
 
         {/* 2. Category Distribution Donut */}
-        <ChartCard title="🥧 Category Distribution" subtitle="Spending by category" index={1}>
+        <ChartCard title="🥧 Category Distribution" subtitle="Spending by active subscriptions" index={1}>
           {categoryData.length > 0 ? (
             <div className={styles.donutWrap}>
               <ResponsiveContainer width={160} height={160}>
@@ -373,7 +373,7 @@ const AnalyticsPage = () => {
         </ChartCard>
 
         {/* 3. Top 10 Expensive */}
-        <ChartCard title="💰 Top Expenses" subtitle="Most expensive subscriptions" className={styles.wide} index={2}>
+        <ChartCard title="💰 Top Expenses" subtitle="Most expensive running subscriptions" className={styles.wide} index={2}>
           {top10.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={top10} layout="vertical">

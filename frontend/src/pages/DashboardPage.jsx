@@ -155,7 +155,7 @@ const DashboardPage = () => {
           className="delay-3"
         />
         <StatCard
-          title="Monthly Expense"
+          title="Current Month Spend"
           value={formatCurrency(Math.round(monthlyTotal))}
           icon={TrendingUp}
           color="purple"

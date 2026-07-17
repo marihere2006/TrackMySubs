@@ -14,6 +14,39 @@ const compact = (value = '') => normalize(value).replace(/\s+/g, '');
 
 const nowIso = () => new Date().toISOString();
 
+const isCurrentMonthStart = (startDate, referenceDate = new Date()) => {
+  if (!startDate) return false;
+  const start = new Date(startDate);
+  const reference = new Date(referenceDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(reference.getTime())) return false;
+  return start.getFullYear() === reference.getFullYear() && start.getMonth() === reference.getMonth();
+};
+
+const getCurrentMonthContribution = (subscription = {}, referenceDate = new Date()) => (
+  isCurrentMonthStart(subscription.startDate, referenceDate) ? Number(subscription.cost || 0) : 0
+);
+
+const getCurrentMonthSubscriptions = (subscriptions = [], referenceDate = new Date()) =>
+  subscriptions.filter((subscription) => getCurrentMonthContribution(subscription, referenceDate) > 0);
+
+const getCurrentMonthSpend = (subscriptions = [], referenceDate = new Date()) =>
+  getCurrentMonthSubscriptions(subscriptions, referenceDate).reduce((sum, sub) => sum + Number(sub.cost || 0), 0);
+
+const isRunningSubscription = (subscription = {}, referenceDate = new Date()) => {
+  const status = normalize(subscription.computedStatus || subscription.status || '');
+  if (status === 'expired') return false;
+  if (status === 'active' || status === 'expiring soon') return true;
+
+  const expiry = new Date(subscription.expiryDate);
+  return !Number.isNaN(expiry.getTime()) && expiry >= new Date(referenceDate);
+};
+
+const getRunningSubscriptions = (subscriptions = [], referenceDate = new Date()) =>
+  subscriptions.filter((subscription) => isRunningSubscription(subscription, referenceDate));
+
+const getRunningSpend = (subscriptions = [], referenceDate = new Date()) =>
+  getRunningSubscriptions(subscriptions, referenceDate).reduce((sum, sub) => sum + Number(sub.cost || 0), 0);
+
 export const extractTargetAmount = (prompt = '') => {
   const match = prompt.match(MONEY_REGEX);
   if (!match) return null;
@@ -51,8 +84,7 @@ export const detectIntent = (prompt = '') => {
   return 'generic_chat';
 };
 
-const sumCost = (subscriptions = []) =>
-  subscriptions.reduce((sum, sub) => sum + Number(sub.cost || 0), 0);
+const sumCost = (subscriptions = []) => getCurrentMonthSpend(subscriptions);
 
 const sortByExpiryAsc = (subscriptions = []) =>
   [...subscriptions].sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
@@ -104,11 +136,11 @@ export const getMonthlyEquivalentCost = (subscription = {}) => {
 export const getAnnualEquivalentCost = (subscription = {}) => getMonthlyEquivalentCost(subscription) * 12;
 
 export const getNormalizedMonthlyTotal = (subscriptions = []) =>
-  subscriptions.reduce((sum, sub) => sum + getMonthlyEquivalentCost(sub), 0);
+  getCurrentMonthSpend(subscriptions);
 
 export const getTopExpense = (subscriptions = []) =>
-  [...subscriptions]
-    .map((subscription) => ({ ...subscription, monthlyEquivalentCost: getMonthlyEquivalentCost(subscription) }))
+  [...getRunningSubscriptions(subscriptions)]
+    .map((subscription) => ({ ...subscription, monthlyEquivalentCost: Number(subscription.cost || 0) }))
     .sort((a, b) => b.monthlyEquivalentCost - a.monthlyEquivalentCost)[0] || null;
 
 export const getUpcomingRenewals = (subscriptions = [], daysWindow = 30) => {
@@ -268,22 +300,23 @@ export const buildGoalTemplates = ({ subscriptions = [] } = {}) => {
 };
 
 export const calculateHealthScore = ({ subscriptions = [] } = {}) => {
-  const monthlyTotal = getNormalizedMonthlyTotal(subscriptions);
-  const upcomingRenewals = getUpcomingRenewals(subscriptions, 30);
+  const runningSubscriptions = getRunningSubscriptions(subscriptions);
+  const monthlyTotal = getRunningSpend(runningSubscriptions);
+  const upcomingRenewals = getUpcomingRenewals(runningSubscriptions, 30);
   const urgentRenewals = upcomingRenewals.filter((sub) => sub.daysUntilExpiry <= 7);
-  const duplicatePairs = findDuplicatePairs(subscriptions);
+  const duplicatePairs = findDuplicatePairs(runningSubscriptions);
   const duplicateWaste = duplicatePairs.reduce((sum, pair) => sum + pair.estimatedWaste, 0);
-  const lowUsageExpensive = subscriptions.filter((sub) => {
+  const lowUsageExpensive = runningSubscriptions.filter((sub) => {
     const monthlyCost = getMonthlyEquivalentCost(sub);
     const usage = normalize(sub.usageFrequency);
-    return monthlyCost >= (monthlyTotal / Math.max(subscriptions.length || 1, 1)) && /rare|never|low/.test(usage);
+    return monthlyCost >= (monthlyTotal / Math.max(runningSubscriptions.length || 1, 1)) && /rare|never|low/.test(usage);
   });
-  const expensiveAutoRenew = subscriptions.filter((sub) => getMonthlyEquivalentCost(sub) >= (monthlyTotal / Math.max(subscriptions.length || 1, 1)) && sub.autoRenewal);
+  const expensiveAutoRenew = runningSubscriptions.filter((sub) => getMonthlyEquivalentCost(sub) >= (monthlyTotal / Math.max(runningSubscriptions.length || 1, 1)) && sub.autoRenewal);
 
   const renewalManagement = Math.max(0, 100 - (urgentRenewals.length * 14) - (upcomingRenewals.filter((sub) => !sub.autoRenewal).length * 6));
   const unusedExpensive = Math.max(0, 100 - (lowUsageExpensive.length * 20));
   const duplicateServices = monthlyTotal > 0 ? Math.max(0, 100 - Math.round((duplicateWaste / monthlyTotal) * 120)) : 100;
-  const autoRenewOptimization = Math.max(0, 100 - (expensiveAutoRenew.length * 12) + (subscriptions.filter((sub) => sub.autoRenewal).length * 2));
+  const autoRenewOptimization = Math.max(0, 100 - (expensiveAutoRenew.length * 12) + (runningSubscriptions.filter((sub) => sub.autoRenewal).length * 2));
 
   const components = {
     renewalManagement: Math.min(100, renewalManagement),
@@ -433,8 +466,8 @@ export const findDuplicateGroups = (subscriptions = []) => {
 };
 
 const topRemovalsForTarget = (subscriptions, targetAmount) => {
-  const sorted = [...subscriptions]
-    .map((sub) => ({ ...sub, monthlyEquivalentCost: getMonthlyEquivalentCost(sub) }))
+  const sorted = getCurrentMonthSubscriptions(subscriptions)
+    .map((sub) => ({ ...sub, monthlyEquivalentCost: getCurrentMonthContribution(sub) }))
     .sort((a, b) => b.monthlyEquivalentCost - a.monthlyEquivalentCost);
   const chosen = [];
   let current = getNormalizedMonthlyTotal(sorted);
@@ -501,7 +534,7 @@ export const buildWhatIfSimulator = ({ subscriptions = [], prompt = '' }) => {
     };
   }
 
-  const monthlySavings = Number(target.cost || 0);
+  const monthlySavings = getCurrentMonthContribution(target);
   const yearlySavings = monthlySavings * 12;
   const remaining = Math.max(current - monthlySavings, 0);
 
@@ -805,8 +838,8 @@ export const buildMonthlyReviewCard = ({ subscriptions = [], history = [], dashb
     return renewedOn >= limit;
   });
 
-  const monthlySpend = dashboard?.insights?.totalMonthlySpending || subscriptions.reduce((sum, sub) => sum + Number(sub.cost || 0), 0);
-  const largestExpense = subscriptions.slice().sort((a, b) => Number(b.cost || 0) - Number(a.cost || 0))[0];
+  const monthlySpend = dashboard?.insights?.totalMonthlySpending || getCurrentMonthSpend(subscriptions);
+  const largestExpense = getTopExpense(subscriptions);
   const biggestIncrease = dashboard?.insights?.highestExpense || largestExpense?.serviceName || 'N/A';
 
   return {
@@ -922,10 +955,10 @@ export const buildBudgetPlannerV2 = ({ subscriptions = [], targetAmount }) => {
   const { chosen, newTotal } = topRemovalsForTarget(subscriptions, target);
   const savingsNeeded = Math.max(current - target, 0);
   const potentialSavings = Math.max(current - newTotal, 0);
-  const downgradeCandidates = subscriptions
+  const downgradeCandidates = getCurrentMonthSubscriptions(subscriptions)
     .map((sub) => ({
       ...sub,
-      monthlyEquivalentCost: getMonthlyEquivalentCost(sub),
+      monthlyEquivalentCost: getCurrentMonthContribution(sub),
       family: classifySubscriptionFamily(sub),
     }))
     .filter((sub) => sub.monthlyEquivalentCost > 0)
@@ -993,7 +1026,8 @@ export const buildBudgetPlannerV2 = ({ subscriptions = [], targetAmount }) => {
 
 export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
   const target = findSubscriptionByPrompt(subscriptions, prompt);
-  const current = getNormalizedMonthlyTotal(subscriptions);
+  const runningSubscriptions = getRunningSubscriptions(subscriptions);
+  const current = getRunningSpend(runningSubscriptions);
 
   if (!target) {
     return {
@@ -1002,16 +1036,16 @@ export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
       badge: 'Scenario',
       summary: 'Which subscription are you considering cancelling?',
       metrics: [
-        { label: 'Active subscriptions', value: String(subscriptions.length), tone: 'neutral' },
+        { label: 'Active subscriptions', value: String(runningSubscriptions.length), tone: 'neutral' },
         { label: 'Current monthly spend', value: formatCurrency(current), tone: 'accent' },
       ],
-      items: subscriptions
+      items: runningSubscriptions
         .slice()
-        .sort((a, b) => getMonthlyEquivalentCost(b) - getMonthlyEquivalentCost(a))
+        .sort((a, b) => Number(b.cost || 0) - Number(a.cost || 0))
         .slice(0, 4)
         .map((sub) => ({
           title: sub.serviceName,
-          subtitle: `${sub.category || 'Other'} Â· ${formatCurrency(getMonthlyEquivalentCost(sub))}`,
+          subtitle: `${sub.category || 'Other'} Â· ${formatCurrency(Number(sub.cost || 0))}`,
         })),
       note: 'Pick one service and I will simulate the savings and trade-offs.',
       actions: [
@@ -1021,7 +1055,7 @@ export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
     };
   }
 
-  const monthlySavings = getMonthlyEquivalentCost(target);
+  const monthlySavings = Number(target.cost || 0);
   const yearlySavings = monthlySavings * 12;
   const remaining = Math.max(current - monthlySavings, 0);
   const replacementSuggestions = subscriptions
@@ -1205,8 +1239,9 @@ export const buildHealthScoreCardV2 = ({ subscriptions = [] }) => {
 };
 
 export const buildForecastCardV2 = ({ subscriptions = [], history = [] }) => {
-  const monthlyTotal = getNormalizedMonthlyTotal(subscriptions);
-  const upcoming = getUpcomingRenewals(subscriptions, 90);
+  const runningSubscriptions = getRunningSubscriptions(subscriptions);
+  const monthlyTotal = getRunningSpend(runningSubscriptions);
+  const upcoming = getUpcomingRenewals(runningSubscriptions, 90);
   const nextMonth = Math.round(monthlyTotal + upcoming.filter((sub) => sub.daysUntilExpiry <= 30).reduce((sum, sub) => sum + sub.monthlyEquivalentCost, 0));
   const nextQuarter = Math.round(monthlyTotal * 3 + upcoming.filter((sub) => sub.daysUntilExpiry <= 90).reduce((sum, sub) => sum + sub.monthlyEquivalentCost, 0));
   const nextYear = Math.round(monthlyTotal * 12);
@@ -1327,11 +1362,12 @@ export const buildGoalPlannerCardV2 = ({ subscriptions = [], goals = [] }) => {
 };
 
 export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
-  const current = getNormalizedMonthlyTotal(subscriptions);
-  const topExpense = getTopExpense(subscriptions);
-  const duplicates = findDuplicatePairs(subscriptions);
-  const lowUsage = subscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
-  const familyMap = subscriptions.map((sub) => ({ ...sub, family: classifySubscriptionFamily(sub), monthlyEquivalentCost: getMonthlyEquivalentCost(sub) }));
+  const runningSubscriptions = getRunningSubscriptions(subscriptions);
+  const current = getRunningSpend(runningSubscriptions);
+  const topExpense = getTopExpense(runningSubscriptions);
+  const duplicates = findDuplicatePairs(runningSubscriptions);
+  const lowUsage = runningSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
+  const familyMap = runningSubscriptions.map((sub) => ({ ...sub, family: classifySubscriptionFamily(sub), monthlyEquivalentCost: Number(sub.cost || 0) }));
 
   if (!goal) {
     return {
@@ -1378,7 +1414,7 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
   }
 
   if (/annual plans|optimize everything/.test(normalizedGoal)) {
-    recommendations.push(...subscriptions
+    recommendations.push(...runningSubscriptions
       .filter((sub) => /monthly|month/i.test(sub.billingCycle || ''))
       .slice(0, 3)
       .map((sub) => ({
@@ -1389,7 +1425,7 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
   }
 
   if (/student discounts/.test(normalizedGoal)) {
-    recommendations.push(...subscriptions
+    recommendations.push(...runningSubscriptions
       .filter((sub) => /education|design|productivity|creative|software/i.test(normalize(`${sub.category || ''} ${sub.serviceName || ''}`)))
       .slice(0, 3)
       .map((sub) => ({
@@ -1402,7 +1438,7 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
   if (/remove unused subscriptions/.test(normalizedGoal)) {
     recommendations.push(...lowUsage.slice(0, 4).map((sub) => ({
       title: sub.serviceName,
-      subtitle: `${sub.usageFrequency || 'Usage not marked'} Â· ${formatCurrency(getMonthlyEquivalentCost(sub))}`,
+      subtitle: `${sub.usageFrequency || 'Usage not marked'} Â· ${formatCurrency(getCurrentMonthContribution(sub))}`,
       reason: 'Low usage is a strong signal that this plan should be reviewed or cancelled.',
     })));
   }
@@ -1437,11 +1473,12 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
 
 export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
   const text = normalize(prompt);
-  const current = getNormalizedMonthlyTotal(subscriptions);
-  const topExpense = getTopExpense(subscriptions);
+  const runningSubscriptions = getRunningSubscriptions(subscriptions);
+  const current = getRunningSpend(runningSubscriptions);
+  const topExpense = getTopExpense(runningSubscriptions);
   const yearlySpend = current * 12;
-  const upcoming = getUpcomingRenewals(subscriptions, 30);
-  const duplicates = findDuplicatePairs(subscriptions);
+  const upcoming = getUpcomingRenewals(runningSubscriptions, 30);
+  const duplicates = findDuplicatePairs(runningSubscriptions);
 
   if (/(most expensive|costs the most|highest subscription)/.test(text) && topExpense) {
     return {
@@ -1491,7 +1528,7 @@ export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
 
   if (/(save money|can i save|where am i wasting money|optimize|reduce spending)/.test(text)) {
     const duplicateWaste = duplicates.reduce((sum, pair) => sum + pair.estimatedWaste, 0);
-    const lowUsage = subscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
+    const lowUsage = runningSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
     return {
       type: 'coach',
       title: 'AI Financial Coach',
@@ -1510,7 +1547,7 @@ export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
         })),
         ...lowUsage.slice(0, 2).map((sub) => ({
           title: sub.serviceName,
-          subtitle: `Low usage Â· ${formatCurrency(getMonthlyEquivalentCost(sub))}`,
+          subtitle: `Low usage Â· ${formatCurrency(getCurrentMonthContribution(sub))}`,
         })),
       ],
       note: 'These recommendations are generated from your actual subscription data and usage flags.',
@@ -1528,11 +1565,11 @@ export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
     type: 'coach',
     title: 'AI Financial Coach',
     badge: 'Coach',
-    summary: current
-      ? `You currently spend ${formatCurrency(current)} per month across ${subscriptions.length} active subscription${subscriptions.length === 1 ? '' : 's'}.`
+      summary: current
+      ? `You currently spend ${formatCurrency(current)} per month across ${runningSubscriptions.length} active subscription${runningSubscriptions.length === 1 ? '' : 's'}.`
       : 'Add subscriptions and I will start coaching you on spending decisions.',
     metrics: [
-      { label: 'Monthly spend', value: formatCurrency(current), tone: 'neutral' },
+      { label: 'Current month spend', value: formatCurrency(current), tone: 'neutral' },
       { label: 'Yearly spend', value: formatCurrency(Math.round(yearlySpend)), tone: 'accent' },
       { label: 'Renewals', value: String(upcoming.length), tone: 'info' },
       { label: 'Duplicates', value: String(duplicates.length), tone: 'warning' },

@@ -33,18 +33,29 @@ public class AIEngineServiceImpl implements AIEngineService {
     private final ChatClient chatClient;
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionHistoryRepository subscriptionHistoryRepository;
+    private final MonthlySpendingCalculator monthlySpendingCalculator;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    public AIEngineServiceImpl(ChatClient.Builder chatClientBuilder, SubscriptionRepository subscriptionRepository, SubscriptionHistoryRepository subscriptionHistoryRepository) {
+    public AIEngineServiceImpl(ChatClient.Builder chatClientBuilder, SubscriptionRepository subscriptionRepository, SubscriptionHistoryRepository subscriptionHistoryRepository, MonthlySpendingCalculator monthlySpendingCalculator) {
         this.chatClient = chatClientBuilder.build();
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionHistoryRepository = subscriptionHistoryRepository;
+        this.monthlySpendingCalculator = monthlySpendingCalculator;
     }
 
-    private List<Subscription> getActiveSubs(User user) {
+    private List<Subscription> getRunningSubs(User user) {
+        LocalDate today = LocalDate.now();
         return subscriptionRepository.findByUser(user).stream()
-                .filter(s -> "Active".equalsIgnoreCase(s.getStatus()))
+                .filter(subscription -> monthlySpendingCalculator.isCurrentlyRunning(subscription, today))
                 .collect(Collectors.toList());
+    }
+
+    private List<Subscription> getAllSubs(User user) {
+        return subscriptionRepository.findByUser(user);
+    }
+
+    private BigDecimal getRunningSpend(List<Subscription> subscriptions) {
+        return monthlySpendingCalculator.calculateRunningSpend(subscriptions, LocalDate.now());
     }
 
     private String compactText(String value) {
@@ -212,7 +223,7 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     private String buildHealthSummary(List<Subscription> subs) {
         if (subs.isEmpty()) {
-            return "Your subscription health score is 100 out of 100 because there are no active subscriptions.";
+            return "Your subscription health score is 100 out of 100 because there are no active subscriptions yet.";
         }
 
         List<Subscription> duplicates = getDuplicates(subs);
@@ -235,11 +246,14 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public AiCopilotSummary getCopilotSummary(User user) {
-        List<Subscription> subs = getActiveSubs(user);
-        BigDecimal total = subs.stream().map(Subscription::getCost).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Subscription> allSubs = getAllSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
+        BigDecimal total = getRunningSpend(subs);
         
         String prompt = "Generate a JSON object for an AI Copilot Summary. User is " + user.getName() + ". "
-            + "Total spending: " + total + ", Subs count: " + subs.size() + ". "
+            + "Current running spend: " + total + ", Current running subs count: " + subs.size() + ". "
+            + "Only currently running subscriptions count toward spending. "
+            + "Total tracked subscriptions: " + allSubs.size() + ". "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCategory() + " - " + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as:\n"
             + "{\n"
@@ -251,7 +265,7 @@ public class AIEngineServiceImpl implements AIEngineService {
             + "Do not include any text outside the JSON.";
 
         try {
-            if (subs.isEmpty()) return new AiCopilotSummary("Hello " + user.getName(), "You have no subscriptions.", List.of("Add some subscriptions to get insights."), 100);
+            if (subs.isEmpty()) return new AiCopilotSummary("Hello " + user.getName(), "You have no active subscriptions yet.", List.of("Add active subscriptions to see spend insights."), 100);
             String response = chatClient.prompt().user(prompt).call().content();
             return objectMapper.readValue(extractJson(response), AiCopilotSummary.class);
         } catch (Exception e) {
@@ -261,11 +275,12 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public AiHealthScoreResponse getHealthScore(User user) {
-        List<Subscription> subs = getActiveSubs(user);
-        if (subs.isEmpty()) return new AiHealthScoreResponse(100, Collections.emptyList(), "Perfect score! You have no subscriptions.");
+        List<Subscription> subs = getRunningSubs(user);
+        if (subs.isEmpty()) return new AiHealthScoreResponse(100, Collections.emptyList(), "Perfect score! You have no active subscriptions yet.");
         
         String prompt = "Calculate a realistic subscription health score (0-100) and provide a breakdown of points. "
             + "Start at 100. Deduct points for duplicates or high costs. Add points for good management. "
+            + "Use only currently running subscriptions when evaluating monthly spend. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as valid JSON:\n"
             + "{\n"
@@ -285,11 +300,9 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public AiInsightsResponse getFinancialInsights(User user) {
-        List<Subscription> subs = getActiveSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
         
-        BigDecimal monthlyTotal = subs.stream()
-            .map(Subscription::getCost)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal monthlyTotal = getRunningSpend(subs);
             
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
 
@@ -325,6 +338,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         String prompt = "Provide 3-4 bullet point financial insights for these subscriptions. "
+            + "Only currently running subscriptions count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a JSON array of strings:\n"
             + "[\"AWS Cloud is your largest recurring expense.\", \"Entertainment costs remain low.\"]\n";
@@ -357,10 +371,11 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public List<AiRecommendation> getRecommendations(User user) {
-        List<Subscription> subs = getActiveSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
         if (subs.isEmpty()) return Collections.emptyList();
         
         String prompt = "Review these subscriptions and provide cost-saving recommendations (Priority 1, 2, 3). "
+            + "Only currently running subscriptions count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a JSON array:\n"
             + "[\n"
@@ -383,11 +398,12 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public SpendingForecast getSpendingForecast(User user) {
-        List<Subscription> subs = getActiveSubs(user);
-        BigDecimal monthlyTotal = subs.stream().map(Subscription::getCost).reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (subs.isEmpty()) return new SpendingForecast(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 100, List.of("No active subscriptions."));
+        List<Subscription> subs = getRunningSubs(user);
+        BigDecimal monthlyTotal = getRunningSpend(subs);
+        if (subs.isEmpty()) return new SpendingForecast(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 100, List.of("No active subscriptions yet."));
         
-        String prompt = "Forecast spending based on these monthly subs: " 
+        String prompt = "Forecast spending based on these monthly subs:\n"
+            + "Only currently running subscriptions count toward monthly spending. "
             + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as valid JSON without markdown. Do NOT use '+' signs for numbers, only output plain digits.\n"
             + "{\n"
@@ -408,13 +424,14 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public List<SmartAlert> getSmartAlerts(User user) {
-        List<Subscription> subs = getActiveSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
         if (subs.isEmpty()) return Collections.emptyList();
         
         List<Subscription> duplicates = getDuplicates(subs);
         
         String prompt = "Generate Smart Alerts for these subscriptions (High, Medium, Low, Info). "
             + "Identify upcoming renewals or high expenses. Do NOT create alerts for duplicates, I will handle that natively. "
+            + "Only currently running subscriptions count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a valid JSON array:\n"
             + "[\n"
@@ -440,7 +457,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         List<AiTimelineEvent> timeline = new ArrayList<>();
         timeline.add(new AiTimelineEvent("Today", "Health score recalculated"));
         
-        List<Subscription> subs = getActiveSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
         List<Subscription> duplicates = getDuplicates(subs);
         
         if (!duplicates.isEmpty()) {
@@ -463,8 +480,9 @@ public class AIEngineServiceImpl implements AIEngineService {
         String message = request == null ? "" : request.message();
         String workflowType = request == null || request.workflowType() == null ? "" : request.workflowType().trim().toLowerCase(Locale.ROOT);
         String normalized = normalizeText(message);
-        List<Subscription> subs = getActiveSubs(user);
-        BigDecimal monthlyTotal = subs.stream().map(Subscription::getCost).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Subscription> allSubs = getAllSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
+        BigDecimal monthlyTotal = getRunningSpend(subs);
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
 
         if (normalized.isEmpty()) {
@@ -485,7 +503,7 @@ public class AIEngineServiceImpl implements AIEngineService {
 
         if (containsAny(normalized, "confirm delete all", "yes delete all", "proceed delete all")) {
             subscriptionHistoryRepository.deleteAll(subscriptionHistoryRepository.findByUser(user));
-            subscriptionRepository.deleteAll(subscriptionRepository.findByUser(user));
+            subscriptionRepository.deleteAll(allSubs);
             return new ChatResponse("All subscriptions and history were removed.", "RELOAD");
         }
 
@@ -526,11 +544,14 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "what if", "cancel")) {
-            Subscription target = findSubscriptionByPrompt(subs, message);
+            Subscription target = findSubscriptionByPrompt(allSubs, message);
             if (target == null) {
                 return new ChatResponse("Which subscription should I simulate? Please name the exact service.", "NONE");
             }
-            BigDecimal savings = target.getCost() == null ? BigDecimal.ZERO : target.getCost();
+            BigDecimal savings = monthlySpendingCalculator.isCurrentlyRunning(target, LocalDate.now())
+                    && target.getCost() != null
+                    ? target.getCost()
+                    : BigDecimal.ZERO;
             BigDecimal yearlySavings = savings.multiply(new BigDecimal("12"));
             BigDecimal remaining = monthlyTotal.subtract(savings).max(BigDecimal.ZERO);
             return new ChatResponse(
@@ -556,7 +577,6 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "duplicate", "overlap", "redundant")) {
-            List<Subscription> allSubs = subscriptionRepository.findByUser(user);
             List<Subscription> duplicates = getDuplicates(allSubs);
             if (duplicates.isEmpty()) {
                 return new ChatResponse("I did not find any obvious duplicate subscriptions.", "NONE");
@@ -630,18 +650,21 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public AiDashboardResponse getDashboardData(User user) {
-        List<Subscription> subs = getActiveSubs(user);
+        List<Subscription> allSubs = getAllSubs(user);
+        List<Subscription> subs = getRunningSubs(user);
         
-        BigDecimal monthlyTotal = subs.stream().map(Subscription::getCost).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal monthlyTotal = getRunningSpend(subs);
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
         
-        String context = subs.isEmpty() ? "User has no subscriptions." : 
+        String context = subs.isEmpty() ? "User has no active subscriptions yet." :
                 subs.stream().map(s -> s.getServiceName() + " (" + s.getCategory() + " - " + s.getCost() + ")").collect(Collectors.joining(", "));
 
         String prompt = "You are an AI financial copilot. Analyze these subscriptions and return exactly ONE valid JSON object with 6 keys: 'copilotSummary', 'healthScore', 'insights', 'recommendations', 'forecast', and 'alerts'.\n" +
                 "Do not include any text or markdown formatting outside the JSON block.\n\n" +
                 "User Name: " + user.getName() + "\n" +
-                "Total Monthly Spend: " + monthlyTotal + "\n" +
+                "Current Running Spend: " + monthlyTotal + "\n" +
+                "Total Subscriptions Tracked: " + allSubs.size() + "\n" +
+                "Only currently running subscriptions count toward monthly spending.\n" +
                 "Subscriptions: " + context + "\n\n" +
                 "Required JSON Structure:\n" +
                 "{\n" +
@@ -685,7 +708,7 @@ public class AIEngineServiceImpl implements AIEngineService {
             }
 
             List<String> insightStrs = new ArrayList<>();
-            insightStrs.add("Your total monthly spend is " + monthlyTotal + ".");
+            insightStrs.add("Your current running spend is " + monthlyTotal + ".");
             if (highest != null) insightStrs.add(highestName + " is your largest recurring expense.");
             if (!duplicates.isEmpty()) insightStrs.add("Warning: Duplicate subscription types detected.");
 
@@ -702,11 +725,11 @@ public class AIEngineServiceImpl implements AIEngineService {
             }
 
             return new AiDashboardResponse(
-                    new AiCopilotSummary("Hello " + user.getName(), "You currently spend " + monthlyTotal + "/month across " + subs.size() + " subscriptions.", insightStrs, score),
+                    new AiCopilotSummary("Hello " + user.getName(), "You currently spend " + monthlyTotal + " per month across " + subs.size() + " active subscriptions.", insightStrs, score),
                     new AiHealthScoreResponse(score, List.of(new ScoreBreakdown("+0", "Calculated by Local Copilot.")), "Your portfolio is actively managed."),
                     new AiInsightsResponse(monthlyTotal, yearlyTotal, highestName, lowestName, catTotals, "Stable", highestName, lowestName, catPercentages, insightStrs),
                     recs,
-                    new SpendingForecast(monthlyTotal, monthlyTotal.multiply(new BigDecimal("3")), monthlyTotal.multiply(new BigDecimal("12")), 99, List.of("Forecast generated perfectly using current active subscriptions.")),
+                    new SpendingForecast(monthlyTotal, monthlyTotal.multiply(new BigDecimal("3")), monthlyTotal.multiply(new BigDecimal("12")), 99, List.of("Forecast generated from your active subscriptions.")),
                     smartAlerts
             );
         }

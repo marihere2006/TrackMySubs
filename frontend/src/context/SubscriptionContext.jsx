@@ -14,7 +14,7 @@ import {
   getHistory,
 } from '../services/subscriptionService';
 import { getStatus, daysUntilExpiry } from '../utils/dateUtils';
-import { calcTotalCost } from '../utils/formatUtils';
+import { getCurrentMonthSpend } from '../utils/spendingUtils';
 
 const SubscriptionContext = createContext(null);
 
@@ -131,7 +131,7 @@ export const SubscriptionProvider = ({ children }) => {
     .sort((a, b) => Math.abs(daysUntilExpiry(a.expiryDate)) - Math.abs(daysUntilExpiry(b.expiryDate)));
 
   const [notificationsDismissed, setNotificationsDismissed] = useState(false);
-  const totalActiveCost = calcTotalCost(activeSubscriptions);
+  const currentMonthTotal = getCurrentMonthSpend(subscriptions);
   const dismissNotifications = () => setNotificationsDismissed(true);
 
   return (
@@ -146,8 +146,8 @@ export const SubscriptionProvider = ({ children }) => {
         expiringSoon,
         notifications,
         notificationsDismissed,
-        totalActiveCost,
-        monthlyTotal: totalActiveCost,
+        totalActiveCost: currentMonthTotal,
+        monthlyTotal: currentMonthTotal,
         addSub,
         updateSub,
         deleteSub,

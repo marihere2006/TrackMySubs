@@ -605,7 +605,7 @@ export const AIProvider = ({ children }) => {
     `Page: ${pageContext.pageLabel}`,
     `Filters: ${pageContext.filterSummary}`,
     `Selected subscription: ${pageContext.selectedSubscriptionId || 'None'}`,
-    `Monthly spend: ${formatCurrency(pageContext.monthlyTotal)}`,
+    `Current month spend: ${formatCurrency(pageContext.monthlyTotal)}`,
     `Active subscriptions: ${pageContext.activeCount}`,
     `Expiring soon: ${pageContext.expiringSoonCount}`,
     `Recent history: ${pageContext.recentActions}`,

@@ -58,6 +58,166 @@ public class AIEngineServiceImpl implements AIEngineService {
         return monthlySpendingCalculator.calculateRunningSpend(subscriptions, LocalDate.now());
     }
 
+    private List<Subscription> getCurrentMonthSubs(User user) {
+        LocalDate today = LocalDate.now();
+        return getAllSubs(user).stream()
+                .filter(subscription -> monthlySpendingCalculator.isCurrentMonthStart(subscription.getStartDate(), today))
+                .collect(Collectors.toList());
+    }
+
+    private BigDecimal getCurrentMonthSpend(List<Subscription> subscriptions) {
+        return monthlySpendingCalculator.calculateCurrentMonthSpend(subscriptions, LocalDate.now());
+    }
+
+    private BigDecimal getMonthlyEquivalentCost(Subscription subscription) {
+        if (subscription == null || subscription.getCost() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal cost = subscription.getCost();
+        String billingCycle = normalizeText(subscription.getBillingCycle());
+        if (billingCycle.contains("annual") || billingCycle.contains("year")) {
+            return cost.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        }
+        if (billingCycle.contains("quarter")) {
+            return cost.divide(new BigDecimal("3"), 2, RoundingMode.HALF_UP);
+        }
+        if (billingCycle.contains("week")) {
+            return cost.multiply(new BigDecimal("52")).divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        }
+        if (billingCycle.contains("day")) {
+            return cost.multiply(new BigDecimal("365")).divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        }
+        return cost;
+    }
+
+    private List<DuplicatePair> getDuplicatePairs(List<Subscription> subs) {
+        List<DuplicatePair> pairs = new ArrayList<>();
+        for (int i = 0; i < subs.size(); i++) {
+            for (int j = i + 1; j < subs.size(); j++) {
+                Subscription first = subs.get(i);
+                Subscription second = subs.get(j);
+                int similarity = getDuplicateSimilarity(first, second);
+                boolean exactMatch = compactText(first.getServiceName()).equals(compactText(second.getServiceName()));
+                boolean strongNameMatch = compactText(first.getServiceName()).contains(compactText(second.getServiceName()))
+                        || compactText(second.getServiceName()).contains(compactText(first.getServiceName()));
+                boolean strongTokenMatch = similarity >= 72;
+                if (!(exactMatch || strongNameMatch || strongTokenMatch)) {
+                    continue;
+                }
+
+                BigDecimal lowerCost = getMonthlyEquivalentCost(first).min(getMonthlyEquivalentCost(second));
+                BigDecimal estimatedWaste = similarity >= 90
+                        ? lowerCost
+                        : similarity >= 80
+                        ? lowerCost.multiply(new BigDecimal("0.75"))
+                        : lowerCost.multiply(new BigDecimal("0.5"));
+                String familyLabel = detectFamily(first);
+                String confidence = similarity >= 90 ? "High" : similarity >= 80 ? "Medium" : "Review";
+                pairs.add(new DuplicatePair(
+                        List.of(first, second),
+                        similarity,
+                        familyLabel,
+                        estimatedWaste,
+                        confidence,
+                        exactMatch
+                ));
+            }
+        }
+
+        pairs.sort(Comparator.comparingInt(DuplicatePair::similarity).reversed());
+        return pairs.stream().limit(6).collect(Collectors.toList());
+    }
+
+    private HealthMetrics calculateHealthMetrics(List<Subscription> runningSubs) {
+        if (runningSubs == null || runningSubs.isEmpty()) {
+            return new HealthMetrics(100, List.of(), "Perfect score! You have no active subscriptions yet.", 0, 0);
+        }
+
+        BigDecimal monthlyTotal = runningSubs.stream()
+                .map(this::getMonthlyEquivalentCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Subscription> upcomingRenewals = runningSubs.stream()
+                .filter(sub -> sub.getExpiryDate() != null && !sub.getExpiryDate().isAfter(LocalDate.now().plusDays(30)))
+                .collect(Collectors.toList());
+        List<Subscription> urgentRenewals = upcomingRenewals.stream()
+                .filter(sub -> sub.getExpiryDate() != null && !sub.getExpiryDate().isAfter(LocalDate.now().plusDays(7)))
+                .collect(Collectors.toList());
+        List<DuplicatePair> duplicatePairs = getDuplicatePairs(runningSubs);
+        BigDecimal duplicateWaste = duplicatePairs.stream()
+                .map(DuplicatePair::estimatedWaste)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal averageCost = monthlyTotal.divide(new BigDecimal(String.valueOf(Math.max(runningSubs.size(), 1))), 2, RoundingMode.HALF_UP);
+        List<Subscription> lowUsageExpensive = runningSubs.stream()
+                .filter(sub -> {
+                    BigDecimal monthlyCost = getMonthlyEquivalentCost(sub);
+                    String usage = normalizeText(sub.getUsageFrequency());
+                    return monthlyCost.compareTo(averageCost) >= 0 && usage.matches(".*(rare|never|low).*");
+                })
+                .collect(Collectors.toList());
+        List<Subscription> expensiveAutoRenew = runningSubs.stream()
+                .filter(sub -> getMonthlyEquivalentCost(sub).compareTo(averageCost) >= 0 && Boolean.TRUE.equals(sub.getAutoRenewal()))
+                .collect(Collectors.toList());
+
+        int renewalManagement = Math.max(0,
+                100 - (urgentRenewals.size() * 14) - ((int) upcomingRenewals.stream().filter(sub -> !Boolean.TRUE.equals(sub.getAutoRenewal())).count() * 6));
+        int unusedExpensive = Math.max(0, 100 - (lowUsageExpensive.size() * 20));
+        int duplicateServices = monthlyTotal.compareTo(BigDecimal.ZERO) > 0
+                ? Math.max(0, 100 - Math.round(duplicateWaste.divide(monthlyTotal, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("120")).floatValue()))
+                : 100;
+        int autoRenewOptimization = Math.max(0, 100 - (expensiveAutoRenew.size() * 12) + (int) runningSubs.stream().filter(sub -> Boolean.TRUE.equals(sub.getAutoRenewal())).count() * 2);
+
+        Map<String, Integer> components = Map.of(
+                "renewalManagement", Math.min(100, renewalManagement),
+                "unusedExpensive", Math.min(100, unusedExpensive),
+                "duplicateServices", Math.min(100, duplicateServices),
+                "autoRenewOptimization", Math.min(100, autoRenewOptimization)
+        );
+
+        List<WeightedHealthComponent> weightedEntries = List.of(
+                new WeightedHealthComponent("renewalManagement", 40, components.get("renewalManagement")),
+                new WeightedHealthComponent("unusedExpensive", 20, components.get("unusedExpensive")),
+                new WeightedHealthComponent("duplicateServices", 20, components.get("duplicateServices")),
+                new WeightedHealthComponent("autoRenewOptimization", 10, components.get("autoRenewOptimization"))
+        );
+
+        int totalWeight = weightedEntries.stream().mapToInt(WeightedHealthComponent::weight).sum();
+        int score = Math.round(
+                (float) weightedEntries.stream().mapToDouble(entry -> entry.value() * entry.weight()).sum() / Math.max(totalWeight, 1)
+        );
+
+        List<ScoreBreakdown> breakdown = List.of(
+                new ScoreBreakdown(components.get("renewalManagement") + "/100", urgentRenewals.isEmpty()
+                        ? "Renewals are under control."
+                        : urgentRenewals.size() + " renewal" + (urgentRenewals.size() == 1 ? "" : "s") + " need attention within 7 days."),
+                new ScoreBreakdown(components.get("unusedExpensive") + "/100", lowUsageExpensive.isEmpty()
+                        ? "No obvious expensive unused plans were found."
+                        : lowUsageExpensive.size() + " high-cost subscription" + (lowUsageExpensive.size() == 1 ? "" : "s") + " appear underused."),
+                new ScoreBreakdown(components.get("duplicateServices") + "/100", duplicatePairs.isEmpty()
+                        ? "No clear duplicate services were detected."
+                        : duplicatePairs.size() + " possible overlap" + (duplicatePairs.size() == 1 ? "" : "s") + " were detected."),
+                new ScoreBreakdown(components.get("autoRenewOptimization") + "/100", expensiveAutoRenew.isEmpty()
+                        ? "Auto-renew settings look balanced."
+                        : expensiveAutoRenew.size() + " expensive plan" + (expensiveAutoRenew.size() == 1 ? "" : "s") + " auto-renew automatically.")
+        );
+
+        String reason;
+        if (!urgentRenewals.isEmpty()) {
+            reason = urgentRenewals.size() + " renewal" + (urgentRenewals.size() == 1 ? "" : "s") + " need attention soon.";
+        } else if (!lowUsageExpensive.isEmpty()) {
+            reason = lowUsageExpensive.size() + " high-cost plan" + (lowUsageExpensive.size() == 1 ? "" : "s") + " look underused.";
+        } else if (!duplicatePairs.isEmpty()) {
+            reason = duplicatePairs.size() + " overlap" + (duplicatePairs.size() == 1 ? "" : "s") + " may be wasting money.";
+        } else if (!expensiveAutoRenew.isEmpty()) {
+            reason = expensiveAutoRenew.size() + " expensive auto-renew plan" + (expensiveAutoRenew.size() == 1 ? "" : "s") + " could be reviewed.";
+        } else {
+            reason = "Your subscription setup looks balanced.";
+        }
+
+        return new HealthMetrics(Math.max(0, Math.min(100, score)), breakdown, reason, duplicatePairs.size(), upcomingRenewals.size());
+    }
+
     private String compactText(String value) {
         return normalizeText(value).replaceAll("[^a-z0-9]", "");
     }
@@ -210,15 +370,15 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     private String buildSpendSummary(List<Subscription> subs) {
         if (subs.isEmpty()) {
-            return "You do not have any active subscriptions yet.";
+            return "You do not have any subscriptions that started this month yet.";
         }
 
         BigDecimal monthlyTotal = subs.stream().map(Subscription::getCost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
         Subscription highest = subs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
 
-        String highestPart = highest == null ? "" : " Your highest subscription is " + highest.getServiceName() + " at " + formatRupee(highest.getCost()) + " per month.";
-        return "You spend " + formatRupee(monthlyTotal) + " per month and about " + formatRupee(yearlyTotal) + " per year across " + subs.size() + " active subscriptions." + highestPart;
+        String highestPart = highest == null ? "" : " Your highest current-month subscription is " + highest.getServiceName() + " at " + formatRupee(highest.getCost()) + " per month.";
+        return "You spend " + formatRupee(monthlyTotal) + " per month and about " + formatRupee(yearlyTotal) + " per year across " + subs.size() + " subscriptions started this month." + highestPart;
     }
 
     private String buildHealthSummary(List<Subscription> subs) {
@@ -226,84 +386,57 @@ public class AIEngineServiceImpl implements AIEngineService {
             return "Your subscription health score is 100 out of 100 because there are no active subscriptions yet.";
         }
 
-        List<Subscription> duplicates = getDuplicates(subs);
-        long expensiveAutoRenew = subs.stream()
-                .filter(sub -> Boolean.TRUE.equals(sub.getAutoRenewal()) && sub.getCost() != null && sub.getCost().compareTo(new BigDecimal("1000")) >= 0)
-                .count();
-        long upcomingRenewals = subs.stream()
-                .filter(sub -> {
-                    try {
-                        return sub.getExpiryDate() != null && !sub.getExpiryDate().isAfter(LocalDate.now().plusDays(14));
-                    } catch (Exception ignored) {
-                        return false;
-                    }
-                })
-                .count();
-
-        int score = Math.max(40, 100 - (duplicates.size() * 12) - ((int) expensiveAutoRenew * 7) - ((int) upcomingRenewals * 3));
-        return "Your subscription health score is " + score + " out of 100. I found " + duplicates.size() + " possible overlap group" + (duplicates.size() == 1 ? "" : "s") + " and " + upcomingRenewals + " renewal" + (upcomingRenewals == 1 ? "" : "s") + " coming soon.";
+        HealthMetrics metrics = calculateHealthMetrics(subs);
+        return "Your subscription health score is " + metrics.score() + " out of 100. I found " + metrics.duplicateGroups() + " possible overlap group" + (metrics.duplicateGroups() == 1 ? "" : "s") + " and " + metrics.upcomingRenewals() + " renewal" + (metrics.upcomingRenewals() == 1 ? "" : "s") + " coming soon.";
     }
 
     @Override
     public AiCopilotSummary getCopilotSummary(User user) {
-        List<Subscription> allSubs = getAllSubs(user);
-        List<Subscription> subs = getRunningSubs(user);
-        BigDecimal total = getRunningSpend(subs);
-        
-        String prompt = "Generate a JSON object for an AI Copilot Summary. User is " + user.getName() + ". "
-            + "Current running spend: " + total + ", Current running subs count: " + subs.size() + ". "
-            + "Only currently running subscriptions count toward spending. "
-            + "Total tracked subscriptions: " + allSubs.size() + ". "
-            + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCategory() + " - " + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
-            + "Format EXACTLY as:\n"
-            + "{\n"
-            + "  \"greeting\": \"Good afternoon, " + user.getName() + ".\",\n"
-            + "  \"summaryText\": \"You currently spend " + total + "/month across " + subs.size() + " subscriptions.\",\n"
-            + "  \"bulletPoints\": [\"Cloud Storage accounts for 45% of your spending.\", \"Spotify renews in 6 days.\"],\n"
-            + "  \"healthScore\": 92\n"
-            + "}\n"
-            + "Do not include any text outside the JSON.";
+        List<Subscription> currentMonthSubs = getCurrentMonthSubs(user);
+        List<Subscription> runningSubs = getRunningSubs(user);
+        BigDecimal monthlyTotal = getCurrentMonthSpend(currentMonthSubs);
+        AiHealthScoreResponse healthScore = getHealthScore(user);
+        Subscription highest = currentMonthSubs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
+        List<String> bulletPoints = new ArrayList<>();
 
-        try {
-            if (subs.isEmpty()) return new AiCopilotSummary("Hello " + user.getName(), "You have no active subscriptions yet.", List.of("Add active subscriptions to see spend insights."), 100);
-            String response = chatClient.prompt().user(prompt).call().content();
-            return objectMapper.readValue(extractJson(response), AiCopilotSummary.class);
-        } catch (Exception e) {
-            return new AiCopilotSummary("Hello " + user.getName(), "Unable to generate summary.", List.of(cleanError(e)), 0);
+        if (currentMonthSubs.isEmpty()) {
+            bulletPoints.add("Add subscriptions that start this month to see monthly spend insights.");
+        } else {
+            if (highest != null) {
+                bulletPoints.add(highest.getServiceName() + " is your highest current-month expense.");
+            }
+            bulletPoints.add("You have " + currentMonthSubs.size() + " subscription" + (currentMonthSubs.size() == 1 ? "" : "s") + " that started this month.");
         }
+
+        if (!runningSubs.isEmpty()) {
+            long upcomingRenewals = runningSubs.stream()
+                    .filter(sub -> sub.getExpiryDate() != null && !sub.getExpiryDate().isAfter(LocalDate.now().plusDays(14)))
+                    .count();
+            bulletPoints.add(upcomingRenewals + " renewal" + (upcomingRenewals == 1 ? "" : "s") + " are coming soon.");
+        }
+        bulletPoints.add("Health score: " + healthScore.healthScore() + "/100.");
+
+        String summaryText = currentMonthSubs.isEmpty()
+                ? "You do not have any subscriptions that started this month yet."
+                : "You currently spend " + formatRupee(monthlyTotal) + " per month across " + currentMonthSubs.size() + " subscriptions that started this month.";
+
+        return new AiCopilotSummary("Hello " + user.getName(), summaryText, bulletPoints, healthScore.healthScore());
     }
 
     @Override
     public AiHealthScoreResponse getHealthScore(User user) {
         List<Subscription> subs = getRunningSubs(user);
         if (subs.isEmpty()) return new AiHealthScoreResponse(100, Collections.emptyList(), "Perfect score! You have no active subscriptions yet.");
-        
-        String prompt = "Calculate a realistic subscription health score (0-100) and provide a breakdown of points. "
-            + "Start at 100. Deduct points for duplicates or high costs. Add points for good management. "
-            + "Use only currently running subscriptions when evaluating monthly spend. "
-            + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
-            + "Format EXACTLY as valid JSON:\n"
-            + "{\n"
-            + "  \"healthScore\": 92,\n"
-            + "  \"breakdown\": [ { \"points\": \"+25\", \"description\": \"Good renewal management\" }, { \"points\": \"-8\", \"description\": \"High cloud spending\" } ],\n"
-            + "  \"reason\": \"Most subscriptions are well managed.\"\n"
-            + "}\n"
-            + "Do not include any text outside the JSON.";
 
-        try {
-            String response = chatClient.prompt().user(prompt).call().content();
-            return objectMapper.readValue(extractJson(response), AiHealthScoreResponse.class);
-        } catch (Exception e) {
-            return new AiHealthScoreResponse(0, Collections.emptyList(), cleanError(e));
-        }
+        HealthMetrics metrics = calculateHealthMetrics(subs);
+        return new AiHealthScoreResponse(metrics.score(), metrics.breakdown(), metrics.reason());
     }
 
     @Override
     public AiInsightsResponse getFinancialInsights(User user) {
-        List<Subscription> subs = getRunningSubs(user);
-        
-        BigDecimal monthlyTotal = getRunningSpend(subs);
-            
+        List<Subscription> subs = getCurrentMonthSubs(user);
+
+        BigDecimal monthlyTotal = getCurrentMonthSpend(subs);
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
 
         Subscription highest = subs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
@@ -338,7 +471,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         String prompt = "Provide 3-4 bullet point financial insights for these subscriptions. "
-            + "Only currently running subscriptions count toward monthly spending. "
+            + "Only subscriptions that started this month count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a JSON array of strings:\n"
             + "[\"AWS Cloud is your largest recurring expense.\", \"Entertainment costs remain low.\"]\n";
@@ -371,11 +504,11 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public List<AiRecommendation> getRecommendations(User user) {
-        List<Subscription> subs = getRunningSubs(user);
+        List<Subscription> subs = getCurrentMonthSubs(user);
         if (subs.isEmpty()) return Collections.emptyList();
         
         String prompt = "Review these subscriptions and provide cost-saving recommendations (Priority 1, 2, 3). "
-            + "Only currently running subscriptions count toward monthly spending. "
+            + "Only subscriptions that started this month count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a JSON array:\n"
             + "[\n"
@@ -398,12 +531,12 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public SpendingForecast getSpendingForecast(User user) {
-        List<Subscription> subs = getRunningSubs(user);
-        BigDecimal monthlyTotal = getRunningSpend(subs);
-        if (subs.isEmpty()) return new SpendingForecast(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 100, List.of("No active subscriptions yet."));
+        List<Subscription> subs = getCurrentMonthSubs(user);
+        BigDecimal monthlyTotal = getCurrentMonthSpend(subs);
+        if (subs.isEmpty()) return new SpendingForecast(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 100, List.of("No subscriptions started this month yet."));
         
         String prompt = "Forecast spending based on these monthly subs:\n"
-            + "Only currently running subscriptions count toward monthly spending. "
+            + "Only subscriptions that started this month count toward monthly spending. "
             + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as valid JSON without markdown. Do NOT use '+' signs for numbers, only output plain digits.\n"
             + "{\n"
@@ -424,14 +557,14 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public List<SmartAlert> getSmartAlerts(User user) {
-        List<Subscription> subs = getRunningSubs(user);
+        List<Subscription> subs = getCurrentMonthSubs(user);
         if (subs.isEmpty()) return Collections.emptyList();
         
         List<Subscription> duplicates = getDuplicates(subs);
         
         String prompt = "Generate Smart Alerts for these subscriptions (High, Medium, Low, Info). "
             + "Identify upcoming renewals or high expenses. Do NOT create alerts for duplicates, I will handle that natively. "
-            + "Only currently running subscriptions count toward monthly spending. "
+            + "Only subscriptions that started this month count toward monthly spending. "
             + "Subs: " + subs.stream().map(s -> s.getServiceName() + " (" + s.getCost() + ")").collect(Collectors.joining(", ")) + ". "
             + "Format EXACTLY as a valid JSON array:\n"
             + "[\n"
@@ -481,8 +614,9 @@ public class AIEngineServiceImpl implements AIEngineService {
         String workflowType = request == null || request.workflowType() == null ? "" : request.workflowType().trim().toLowerCase(Locale.ROOT);
         String normalized = normalizeText(message);
         List<Subscription> allSubs = getAllSubs(user);
-        List<Subscription> subs = getRunningSubs(user);
-        BigDecimal monthlyTotal = getRunningSpend(subs);
+        List<Subscription> currentMonthSubs = getCurrentMonthSubs(user);
+        List<Subscription> runningSubs = getRunningSubs(user);
+        BigDecimal monthlyTotal = getCurrentMonthSpend(currentMonthSubs);
         BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
 
         if (normalized.isEmpty()) {
@@ -536,11 +670,11 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "how much do i spend", "how much am i spending", "what do i spend", "yearly spending", "monthly spending", "spend every month")) {
-            return new ChatResponse(buildSpendSummary(subs), "NONE");
+            return new ChatResponse(buildSpendSummary(currentMonthSubs), "NONE");
         }
 
         if (containsAny(normalized, "health score", "how healthy", "improve it")) {
-            return new ChatResponse(buildHealthSummary(subs), "NONE");
+            return new ChatResponse(buildHealthSummary(runningSubs), "NONE");
         }
 
         if (containsAny(normalized, "what if", "cancel")) {
@@ -548,7 +682,7 @@ public class AIEngineServiceImpl implements AIEngineService {
             if (target == null) {
                 return new ChatResponse("Which subscription should I simulate? Please name the exact service.", "NONE");
             }
-            BigDecimal savings = monthlySpendingCalculator.isCurrentlyRunning(target, LocalDate.now())
+            BigDecimal savings = monthlySpendingCalculator.isCurrentMonthStart(target.getStartDate(), LocalDate.now())
                     && target.getCost() != null
                     ? target.getCost()
                     : BigDecimal.ZERO;
@@ -560,7 +694,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "renewal", "renews", "upcoming renewals")) {
-            List<Subscription> upcoming = subs.stream()
+            List<Subscription> upcoming = runningSubs.stream()
                     .filter(sub -> sub.getExpiryDate() != null)
                     .sorted(Comparator.comparing(Subscription::getExpiryDate))
                     .limit(3)
@@ -586,7 +720,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "optimize", "save money", "reduce spending", "cut costs")) {
-            Subscription highest = subs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
+            Subscription highest = currentMonthSubs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
             if (highest == null) {
                 return new ChatResponse("Add subscriptions first and I will suggest places to save.", "NONE");
             }
@@ -596,7 +730,7 @@ public class AIEngineServiceImpl implements AIEngineService {
         }
 
         if (containsAny(normalized, "most expensive", "highest subscription", "costs the most")) {
-            Subscription highest = subs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
+            Subscription highest = currentMonthSubs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
             if (highest == null) {
                 return new ChatResponse("Add subscriptions first and I will tell you which one costs the most.", "NONE");
             }
@@ -625,8 +759,10 @@ public class AIEngineServiceImpl implements AIEngineService {
     public com.trackmysubs.dto.SubscriptionRequest parseNaturalLanguageSubscription(String text) {
         String prompt = "Extract subscription details from this text: \"" + text + "\". " +
                 "Format EXACTLY as a valid JSON object without markdown blocks. Use current date where relative dates are used.\n" +
-                "Required fields: serviceName (string), category (string), planName (string), billingCycle (string: 'Monthly' or 'Yearly'), cost (number).\n" +
-                "Optional fields: startDate (YYYY-MM-DD), expiryDate (YYYY-MM-DD), paymentMethod (string).\n" +
+                "Required fields: serviceName, category, planName, billingCycle, cost, autoRenewal, startDate, expiryDate.\n" +
+                "Optional fields: paymentMethod, reminderDays, usageFrequency, website, notes.\n" +
+                "Accepted aliases are okay, but prefer the exact field names serviceName, category, planName, billingCycle, cost, autoRenewal, startDate, expiryDate, paymentMethod, reminderDays, usageFrequency, website, notes.\n" +
+                "If a detail is not known, omit it rather than inventing it.\n" +
                 "Example response:\n" +
                 "{\n" +
                 "  \"serviceName\": \"Netflix\",\n" +
@@ -634,6 +770,7 @@ public class AIEngineServiceImpl implements AIEngineService {
                 "  \"planName\": \"Premium\",\n" +
                 "  \"billingCycle\": \"Monthly\",\n" +
                 "  \"cost\": 649.00,\n" +
+                "  \"autoRenewal\": false,\n" +
                 "  \"startDate\": \"2023-10-01\",\n" +
                 "  \"expiryDate\": \"2023-11-01\",\n" +
                 "  \"paymentMethod\": \"Credit Card\"\n" +
@@ -642,7 +779,8 @@ public class AIEngineServiceImpl implements AIEngineService {
         try {
             String response = chatClient.prompt().user(prompt).call().content();
             String json = extractJson(response);
-            return objectMapper.readValue(json, com.trackmysubs.dto.SubscriptionRequest.class);
+            String normalized = SubscriptionRequestNormalizer.normalizeSingle(objectMapper, json);
+            return objectMapper.readValue(normalized, com.trackmysubs.dto.SubscriptionRequest.class);
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse subscription from text: " + e.getMessage(), e);
         }
@@ -650,89 +788,14 @@ public class AIEngineServiceImpl implements AIEngineService {
 
     @Override
     public AiDashboardResponse getDashboardData(User user) {
-        List<Subscription> allSubs = getAllSubs(user);
-        List<Subscription> subs = getRunningSubs(user);
-        
-        BigDecimal monthlyTotal = getRunningSpend(subs);
-        BigDecimal yearlyTotal = monthlyTotal.multiply(new BigDecimal("12"));
-        
-        String context = subs.isEmpty() ? "User has no active subscriptions yet." :
-                subs.stream().map(s -> s.getServiceName() + " (" + s.getCategory() + " - " + s.getCost() + ")").collect(Collectors.joining(", "));
-
-        String prompt = "You are an AI financial copilot. Analyze these subscriptions and return exactly ONE valid JSON object with 6 keys: 'copilotSummary', 'healthScore', 'insights', 'recommendations', 'forecast', and 'alerts'.\n" +
-                "Do not include any text or markdown formatting outside the JSON block.\n\n" +
-                "User Name: " + user.getName() + "\n" +
-                "Current Running Spend: " + monthlyTotal + "\n" +
-                "Total Subscriptions Tracked: " + allSubs.size() + "\n" +
-                "Only currently running subscriptions count toward monthly spending.\n" +
-                "Subscriptions: " + context + "\n\n" +
-                "Required JSON Structure:\n" +
-                "{\n" +
-                "  \"copilotSummary\": { \"greeting\": \"Good day, " + user.getName() + "\", \"summaryText\": \"String\", \"bulletPoints\": [\"String\"], \"healthScore\": 92 },\n" +
-                "  \"healthScore\": { \"healthScore\": 92, \"breakdown\": [ { \"points\": \"String\", \"description\": \"String\" } ], \"reason\": \"String\" },\n" +
-                "  \"insights\": { \"monthlyTotal\": " + monthlyTotal + ", \"yearlyTotal\": " + yearlyTotal + ", \"highestSubscription\": \"String\", \"lowestSubscription\": \"String\", \"categoryTotals\": {\"Cat1\": 100}, \"trend\": \"String\", \"mostExpensiveCategory\": \"String\", \"leastExpensiveCategory\": \"String\", \"categoryPercentages\": {\"Cat1\": 100}, \"suggestions\": [\"String\"] },\n" +
-                "  \"recommendations\": [ { \"priority\": 1, \"action\": \"String\", \"targetSubscription\": \"String\", \"description\": \"String\", \"estimatedSavings\": \"String\", \"confidence\": 90, \"reason\": \"String\" } ],\n" +
-                "  \"forecast\": { \"nextMonth\": " + monthlyTotal + ", \"next3Months\": " + monthlyTotal.multiply(new BigDecimal("3")) + ", \"nextYear\": " + yearlyTotal + ", \"confidence\": 90, \"reasons\": [\"String\"] },\n" +
-                "  \"alerts\": [ { \"priority\": \"String\", \"target\": \"String\", \"price\": \"String\", \"message\": \"String\" } ]\n" +
-                "}";
-
-        try {
-            String response = chatClient.prompt().user(prompt).call().content();
-            String json = extractJson(response);
-            return objectMapper.readValue(json, AiDashboardResponse.class);
-        } catch (Exception e) {
-            System.err.println("Mega Prompt Error (Using Local Fallback Engine): " + e.getMessage());
-            
-            // Perfect Deterministic Fallback Engine
-            List<Subscription> duplicates = getDuplicates(subs);
-            int score = 100 - (duplicates.size() * 15);
-            if (monthlyTotal.compareTo(new BigDecimal("5000")) > 0) score -= 10;
-            score = Math.max(0, score);
-            
-            Subscription highest = subs.stream().max(Comparator.comparing(Subscription::getCost)).orElse(null);
-            Subscription lowest = subs.stream().min(Comparator.comparing(Subscription::getCost)).orElse(null);
-            String highestName = highest != null ? highest.getServiceName() : "N/A";
-            String lowestName = lowest != null ? lowest.getServiceName() : "N/A";
-
-            Map<String, BigDecimal> catTotals = new HashMap<>();
-            Map<String, Integer> catPercentages = new HashMap<>();
-            for (Subscription s : subs) {
-                String cat = s.getCategory() != null ? s.getCategory() : "Uncategorized";
-                catTotals.put(cat, catTotals.getOrDefault(cat, BigDecimal.ZERO).add(s.getCost()));
-            }
-            if (monthlyTotal.compareTo(BigDecimal.ZERO) > 0) {
-                for (Map.Entry<String, BigDecimal> entry : catTotals.entrySet()) {
-                    int pct = entry.getValue().multiply(new BigDecimal("100")).divide(monthlyTotal, RoundingMode.HALF_UP).intValue();
-                    catPercentages.put(entry.getKey(), pct);
-                }
-            }
-
-            List<String> insightStrs = new ArrayList<>();
-            insightStrs.add("Your current running spend is " + monthlyTotal + ".");
-            if (highest != null) insightStrs.add(highestName + " is your largest recurring expense.");
-            if (!duplicates.isEmpty()) insightStrs.add("Warning: Duplicate subscription types detected.");
-
-            List<AiRecommendation> recs = new ArrayList<>();
-            if (highest != null) {
-                recs.add(new AiRecommendation(1, "Switch to Annual", highestName, "Consider switching your highest expense to annual billing.", "Save ~15-20%", 90, "Annual plans frequently offer significant discounts."));
-            }
-            List<SmartAlert> smartAlerts = new ArrayList<>();
-            if (!duplicates.isEmpty()) {
-                smartAlerts.add(new SmartAlert("High", duplicates.get(0).getServiceName(), "₹" + duplicates.get(0).getCost(), "Duplicate subscription detected. Consider cancelling one."));
-            }
-            if (monthlyTotal.compareTo(new BigDecimal("5000")) > 0) {
-                smartAlerts.add(new SmartAlert("Medium", "Total Spend", "₹" + monthlyTotal, "Your monthly spending is above average."));
-            }
-
-            return new AiDashboardResponse(
-                    new AiCopilotSummary("Hello " + user.getName(), "You currently spend " + monthlyTotal + " per month across " + subs.size() + " active subscriptions.", insightStrs, score),
-                    new AiHealthScoreResponse(score, List.of(new ScoreBreakdown("+0", "Calculated by Local Copilot.")), "Your portfolio is actively managed."),
-                    new AiInsightsResponse(monthlyTotal, yearlyTotal, highestName, lowestName, catTotals, "Stable", highestName, lowestName, catPercentages, insightStrs),
-                    recs,
-                    new SpendingForecast(monthlyTotal, monthlyTotal.multiply(new BigDecimal("3")), monthlyTotal.multiply(new BigDecimal("12")), 99, List.of("Forecast generated from your active subscriptions.")),
-                    smartAlerts
-            );
-        }
+        return new AiDashboardResponse(
+                getCopilotSummary(user),
+                getHealthScore(user),
+                getFinancialInsights(user),
+                getRecommendations(user),
+                getSpendingForecast(user),
+                getSmartAlerts(user)
+        );
     }
 
     @Override
@@ -746,6 +809,7 @@ public class AIEngineServiceImpl implements AIEngineService {
 
         String prompt = "You are an expert AI subscription detector. Analyze the following extracted email bodies and identify any software subscriptions or recurring bills.\n" +
                 "Respond ONLY with a valid JSON array of objects representing each unique subscription you found. Do not include markdown formatting like ```json.\n" +
+                "Use the exact field names serviceName, category, planName, billingCycle, cost, autoRenewal, startDate, expiryDate, paymentMethod, reminderDays, usageFrequency, website, notes whenever possible.\n" +
                 "Format EXACTLY like this:\n" +
                 "[\n" +
                 "  {\n" +
@@ -754,6 +818,7 @@ public class AIEngineServiceImpl implements AIEngineService {
                 "    \"planName\": \"Premium\",\n" +
                 "    \"billingCycle\": \"Monthly\",\n" +
                 "    \"cost\": 649.00,\n" +
+                "    \"autoRenewal\": true,\n" +
                 "    \"startDate\": \"2023-10-01\",\n" +
                 "    \"expiryDate\": \"2023-11-01\",\n" +
                 "    \"paymentMethod\": \"Credit Card\"\n" +
@@ -764,12 +829,36 @@ public class AIEngineServiceImpl implements AIEngineService {
         try {
             String response = chatClient.prompt().user(prompt).call().content();
             String json = extractJson(response);
-            return objectMapper.readValue(json, new TypeReference<List<com.trackmysubs.dto.SubscriptionRequest>>(){});
+            String normalized = SubscriptionRequestNormalizer.normalizeArray(objectMapper, json);
+            return objectMapper.readValue(normalized, new TypeReference<List<com.trackmysubs.dto.SubscriptionRequest>>(){});
         } catch (Exception e) {
             System.err.println("Ollama Email Parsing Error: " + e.getMessage());
             return new ArrayList<>();
         }
     }
+
+    private record HealthMetrics(
+            int score,
+            List<ScoreBreakdown> breakdown,
+            String reason,
+            int duplicateGroups,
+            long upcomingRenewals
+    ) {}
+
+    private record DuplicatePair(
+            List<Subscription> items,
+            int similarity,
+            String familyLabel,
+            BigDecimal estimatedWaste,
+            String confidence,
+            boolean exactMatch
+    ) {}
+
+    private record WeightedHealthComponent(
+            String key,
+            int weight,
+            int value
+    ) {}
 }
 
 

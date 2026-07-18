@@ -1026,8 +1026,8 @@ export const buildBudgetPlannerV2 = ({ subscriptions = [], targetAmount }) => {
 
 export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
   const target = findSubscriptionByPrompt(subscriptions, prompt);
-  const runningSubscriptions = getRunningSubscriptions(subscriptions);
-  const current = getRunningSpend(runningSubscriptions);
+  const currentMonthSubscriptions = getCurrentMonthSubscriptions(subscriptions);
+  const current = getCurrentMonthSpend(subscriptions);
 
   if (!target) {
     return {
@@ -1036,10 +1036,10 @@ export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
       badge: 'Scenario',
       summary: 'Which subscription are you considering cancelling?',
       metrics: [
-        { label: 'Active subscriptions', value: String(runningSubscriptions.length), tone: 'neutral' },
+        { label: 'Current-month subscriptions', value: String(currentMonthSubscriptions.length), tone: 'neutral' },
         { label: 'Current monthly spend', value: formatCurrency(current), tone: 'accent' },
       ],
-      items: runningSubscriptions
+      items: currentMonthSubscriptions
         .slice()
         .sort((a, b) => Number(b.cost || 0) - Number(a.cost || 0))
         .slice(0, 4)
@@ -1055,7 +1055,7 @@ export const buildWhatIfSimulatorV2 = ({ subscriptions = [], prompt = '' }) => {
     };
   }
 
-  const monthlySavings = Number(target.cost || 0);
+  const monthlySavings = getCurrentMonthContribution(target);
   const yearlySavings = monthlySavings * 12;
   const remaining = Math.max(current - monthlySavings, 0);
   const replacementSuggestions = subscriptions
@@ -1362,12 +1362,12 @@ export const buildGoalPlannerCardV2 = ({ subscriptions = [], goals = [] }) => {
 };
 
 export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
-  const runningSubscriptions = getRunningSubscriptions(subscriptions);
-  const current = getRunningSpend(runningSubscriptions);
-  const topExpense = getTopExpense(runningSubscriptions);
-  const duplicates = findDuplicatePairs(runningSubscriptions);
-  const lowUsage = runningSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
-  const familyMap = runningSubscriptions.map((sub) => ({ ...sub, family: classifySubscriptionFamily(sub), monthlyEquivalentCost: Number(sub.cost || 0) }));
+  const currentMonthSubscriptions = getCurrentMonthSubscriptions(subscriptions);
+  const current = getCurrentMonthSpend(subscriptions);
+  const topExpense = getTopExpense(currentMonthSubscriptions);
+  const duplicates = findDuplicatePairs(currentMonthSubscriptions);
+  const lowUsage = currentMonthSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
+  const familyMap = currentMonthSubscriptions.map((sub) => ({ ...sub, family: classifySubscriptionFamily(sub), monthlyEquivalentCost: Number(sub.cost || 0) }));
 
   if (!goal) {
     return {
@@ -1414,7 +1414,7 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
   }
 
   if (/annual plans|optimize everything/.test(normalizedGoal)) {
-    recommendations.push(...runningSubscriptions
+    recommendations.push(...currentMonthSubscriptions
       .filter((sub) => /monthly|month/i.test(sub.billingCycle || ''))
       .slice(0, 3)
       .map((sub) => ({
@@ -1425,7 +1425,7 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
   }
 
   if (/student discounts/.test(normalizedGoal)) {
-    recommendations.push(...runningSubscriptions
+    recommendations.push(...currentMonthSubscriptions
       .filter((sub) => /education|design|productivity|creative|software/i.test(normalize(`${sub.category || ''} ${sub.serviceName || ''}`)))
       .slice(0, 3)
       .map((sub) => ({
@@ -1473,12 +1473,12 @@ export const buildCostOptimizerCardV2 = ({ subscriptions = [], goal = '' }) => {
 
 export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
   const text = normalize(prompt);
-  const runningSubscriptions = getRunningSubscriptions(subscriptions);
-  const current = getRunningSpend(runningSubscriptions);
-  const topExpense = getTopExpense(runningSubscriptions);
+  const currentMonthSubscriptions = getCurrentMonthSubscriptions(subscriptions);
+  const current = getCurrentMonthSpend(subscriptions);
+  const topExpense = getTopExpense(currentMonthSubscriptions);
   const yearlySpend = current * 12;
-  const upcoming = getUpcomingRenewals(runningSubscriptions, 30);
-  const duplicates = findDuplicatePairs(runningSubscriptions);
+  const upcoming = getUpcomingRenewals(currentMonthSubscriptions, 30);
+  const duplicates = findDuplicatePairs(currentMonthSubscriptions);
 
   if (/(most expensive|costs the most|highest subscription)/.test(text) && topExpense) {
     return {
@@ -1528,7 +1528,7 @@ export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
 
   if (/(save money|can i save|where am i wasting money|optimize|reduce spending)/.test(text)) {
     const duplicateWaste = duplicates.reduce((sum, pair) => sum + pair.estimatedWaste, 0);
-    const lowUsage = runningSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
+    const lowUsage = currentMonthSubscriptions.filter((sub) => /rare|never|low/.test(normalize(sub.usageFrequency || '')));
     return {
       type: 'coach',
       title: 'AI Financial Coach',
@@ -1565,9 +1565,9 @@ export const buildCoachCardV2 = ({ subscriptions = [], prompt = '' }) => {
     type: 'coach',
     title: 'AI Financial Coach',
     badge: 'Coach',
-      summary: current
-      ? `You currently spend ${formatCurrency(current)} per month across ${runningSubscriptions.length} active subscription${runningSubscriptions.length === 1 ? '' : 's'}.`
-      : 'Add subscriptions and I will start coaching you on spending decisions.',
+    summary: current
+      ? `You currently spend ${formatCurrency(current)} per month across ${currentMonthSubscriptions.length} subscription${currentMonthSubscriptions.length === 1 ? '' : 's'} that started this month.`
+      : 'Add subscriptions that start this month and I will start coaching you on spending decisions.',
     metrics: [
       { label: 'Current month spend', value: formatCurrency(current), tone: 'neutral' },
       { label: 'Yearly spend', value: formatCurrency(Math.round(yearlySpend)), tone: 'accent' },
